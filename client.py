@@ -10,7 +10,7 @@ class Client:
         self.username = input("Enter your username: ")
 
     def start(self):
-        threading.Thread(target=self.send_messages).start()
+        threading.Thread(target=self.send_messages, daemon=True).start()
         self.receive_messages()
 
     def receive_messages(self):

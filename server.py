@@ -11,7 +11,7 @@ class Server:
         self.TIMEOUT = 60  # クライアントがタイムアウトするまでの秒数
 
     def start(self):
-        threading.Thread(target=self.check_client_timeout).start()
+        threading.Thread(target=self.check_client_timeout, daemon=True).start()
         self.receive_messages()
 
     def receive_messages(self):
