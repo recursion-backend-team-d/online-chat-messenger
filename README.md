@@ -1,37 +1,5 @@
 # online-chat-messenger
 
-#### 現状
-```mermaid
-classDiagram
-class Server {
-  +TIMEOUT: int
-  +server_sokcet: socket.socket
-  +clients: dict
-
-  +init(server_address, server_port): None
-  +start(): None
-  +receive_messages(): None
-  +broadcast(message): None
-  +check_client_timeout(): None
-}
-```
-```mermaid
-classDiagram
-class Client {
-  +BUFFER_SIZE: int
-  +NAME_SIZE: int
-  +client_socket: socket.socket
-  +name_size: int
-  +name: str
-
-  +init(server_address, server_port): None
-  +start(): None
-  +prompt_for_name(): str
-  +receive_messages(): None
-  +send_messages(username, message_content): None
-  +encode_message(): bytes
-}
-```
 #### Stage 2
 ```mermaid
 classDiagram
@@ -48,6 +16,7 @@ class ChatClient {
 }
 
 class ChatRoom {
+  +TIMEOUT: int
   +clients: dict
   +name: str
 
@@ -57,12 +26,13 @@ class ChatRoom {
   +receive(): None
   +notify_disconnection(name): None
   +broadcast(msg): None
+  +encode_msg(): bytes
   +generate_token(): str
 }
 
 class Server {
-  +TIMEOUT: int
   +tcp_sokcet: socket.socket
+  +udp_socket: socket.socket
   +rooms: List~ChatRoom~
 
   +init(server_address, server_port): None
@@ -81,6 +51,7 @@ class Client {
   +BUFFER_SIZE: int
   +NAME_SIZE: int
   +udp_socket: socket.socket
+  +tcp_socket: socket.socket
   +name_size: int
   +name: str
   +token: str
