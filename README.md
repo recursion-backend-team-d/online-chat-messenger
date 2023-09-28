@@ -31,7 +31,7 @@ class ChatRoom {
 }
 
 class Server {
-  +BUFFER_SIZE = 4096
+  +BUFFER_SIZE: int
   +address: tuple
   +tcp_sokcet: socket.socket
   +udp_socket: socket.socket
@@ -103,7 +103,7 @@ ChatRoom o-- ChatClient
 ```mermaid
 classDiagram
 class Client {
-  +BUFFER_SIZE = 4096
+  +BUFFER_SIZE: int
   +udp_socket: socket.socket
   +tcp_socket: socket.socket
   +name: str
