@@ -35,7 +35,7 @@ class Server {
   +address: tuple
   +tcp_sokcet: socket.socket
   +udp_socket: socket.socket
-  +rooms: List~ChatRoom~
+  +rooms: dict
 
   +init(address: tuple): None
   +start(): None
@@ -56,7 +56,7 @@ ChatRoom o-- ChatClient
 | address | tupleでaddressを受け取る。ソケットを作成する時の引数でもタプルで扱うし、initの引数やプロパティもクラスのプロパティも少なくなるので見通し良くなりそう |
 | tcp_socket | クライアントと接続を確立する他確立するためのソケット |
 | udp_socket | クライアントとチャットをするために用いるするために用いるソケット|
-| rooms | ChatRoomを格納しておくための配列 |
+| rooms | ChatRoomを格納しておくためのdict key=roomName, value=ChatRoom |
 
 | Method | Description |
 | :------: | :------ |
@@ -71,7 +71,7 @@ ChatRoom o-- ChatClient
 ##### ChatRoom Class
 | Property | Description |
 | :------: | :------ |
-| clients | クライアントをdictで管理する。key=name, value=client ? |
+| clients | クライアントをdictで管理する。key=name, value=ChatClient ? |
 | name | ルームの名前。 |
 
 | Method | Description |
@@ -108,12 +108,13 @@ class Client {
   +tcp_socket: socket.socket
   +name: str
   +token: str
+  +address: tuple
 
   +init(server_address, server_port): None
   +start(): None
   +prompt_for_name(): str
   +connect_server(): None
-  +receive_chat_msg(): None
+  +receive(): None
   +send_messages(username, msg): None
   +encode_msg(): bytes
 }
@@ -126,18 +127,20 @@ class Client {
 | udp_socket | チャットのためのソケット |
 | name | name |
 | token | token |
+| address | address |
 
 | Method | Description |
 | :------: | :------ |
 | init | サーバのaddressをtupleで受け取る |
 | start | connect_serverを呼び出す。 |
 | prompt_for_name | nameの入力を促す |
-| connect_server | TCPでサーバに接続し、ルーム作成、参加のリクエストを行う |
-| join_room | roomNameの入力を受け付ける。リクエストを送り、サーバのレスポンスを待つ。正常にルームの作成、参加が行えたら、receive_chat_msgを別スレッドで呼び出す。同時にsendを呼び出す |
-| receive_chat_msg | self.udp_socketでメッセージを受信する |
+| connect_server | TCPでサーバに接続を行う |
+| join_room | roomNameの入力を受け付ける。リクエストを送り、サーバのレスポンスを待つ。正常にルームの作成(op 1)、参加(op 2)完了のレスポンスを受け取る。receiveを別スレッドで呼び出す。同時にsendを呼び出す |
+| receive | self.udp_socketでメッセージを受信する |
 | send | udp_socketでメッセージをルームに送信する |
 
 ### Protocol
+Client request -> Server response (accept) -> Server Shori -> Server response (completed)
 #### Client Request
 ```json
 // op 1 (create room), op 2 (join room)
@@ -160,5 +163,6 @@ class Client {
   {
     "status": 201,
     "message": "example message"
+    "token" "example token"
   }
 ```
