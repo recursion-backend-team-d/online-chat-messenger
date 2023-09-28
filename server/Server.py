@@ -24,7 +24,8 @@ class Server:
                 self.clients[address] = {
                     'username': username, 'last_time': time.time()}
 
-                message_for_send = f"{username}: {message[1 + username_len:].decode('utf-8')}"
+                message_for_send = \
+                    f"{username}: {message[1 + username_len:].decode('utf-8')}"
                 print(message_for_send)
                 message_for_send = message_for_send.encode('utf-8')
                 self.broadcast(message_for_send, address)
@@ -45,8 +46,8 @@ class Server:
                     if current_time - client_info['last_time'] > self.TIMEOUT:
                         username = client_info['username']
                         print(f"Client {username} ({address}) has timed out.")
-                        timeout_message = f"{username} has timed out and left the chat.".encode(
-                            'utf-8')
+                        timeout_message = f"{username} has timed out \
+                            and left the chat.".encode('utf-8')
                         self.broadcast(timeout_message, address)
                         inactive_clients.append(address)
                 for address in inactive_clients:

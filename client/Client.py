@@ -23,7 +23,8 @@ class Client:
             username = input('Enter your username: ')
             if len(username.encode()) > Client.NAME_SIZE:
                 print(
-                    f'Your name must equal to less than {Client.NAME_SIZE} bytes')
+                    f'Your name must be equal to \
+                        or less than {Client.NAME_SIZE} bytes')
                 continue
             self.name_size = len(username.encode())
             self.username = username
@@ -43,9 +44,11 @@ class Client:
             print('Enter your message')
             while True:
                 message_content = input('')
-                if len(message_content.encode()) + self.name_size + 1 > Client.BUFFER_SIZE:
+                if len(message_content.encode()) + self.name_size + 1 \
+                        > Client.BUFFER_SIZE:
                     print(
-                        f'Messeges must be equal to or less than {Client.BUFFER_SIZE} bytes')
+                        f'Messeges must be equal to \
+                            or less than {Client.BUFFER_SIZE} bytes')
                     continue
                 message = self.encode_message(self.username, message_content)
                 self.client_socket.sendto(
