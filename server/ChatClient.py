@@ -5,7 +5,7 @@ import time
 
 
 class ChatClient:
-    MAX_FALSE_COUNT = 3
+    MAX_INACTIVE_COUNT = 3
 
     def __init__(self, name, address, token, is_host=False):
         self.address = address  # (ip, port)
@@ -14,7 +14,7 @@ class ChatClient:
         self.is_host = is_host
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.last_active = time.time()
-        self.false_count = 0
+        self.inactive_count = 0
         self.is_active = True
 
     def send(self, msg):
@@ -33,8 +33,8 @@ class ChatClient:
 
     def handle_send_error(self, error):
         print(f"Error sending message to {self.name}: {error}")
-        self.false_count += 1
-        if self.false_count > self.MAX_FALSE_COUNT:
+        self.inactive_count += 1
+        if self.inactive_count > self.MAX_INACTIVE_COUNT:
             self.is_active = False
 
     def encode_msg(self, msg):

@@ -7,14 +7,14 @@
 ```mermaid
 classDiagram
 class ChatClient {
-  -MAX_FALSE_COUNT: int
+  -MAX_INACTIVE_COUNT: int
   -address: tuple
   -name: str
   -token: str
   -is_host: bool
   -udp_socket: socket
   -last_active: float
-  -false_count: int
+  -inactive_count: int
   -is_active: bool
 
   +init(name: str, address: tuple, token: str, is_host: bool)
@@ -84,36 +84,49 @@ ChatRoom o-- ChatClient
 
 ##### ChatRoom Class
 
-| Property | Description                                                  |
-| :------: | :----------------------------------------------------------- |
-| clients  | クライアントを dict で管理する。key=name, value=ChatClient ? |
-|   name   | ルームの名前。                                               |
+|         Property          | Description                                                  |
+| :-----------------------: | :----------------------------------------------------------- |
+|          TIMEOUT          | クライアントのタイムアウト                                   |
+|          clients          | クライアントを dict で管理する。key=name, value=ChatClient ? |
+| verified_token_to_address | 参加したクライアントの token と address を dict で管理する   |
+|           name            | ルームの名前。                                               |
 
-|        Method        | Description                                                                    |
-| :------------------: | :----------------------------------------------------------------------------- |
-|      add_client      | クライアントを追加する。クライアントの name が重複しないようにする。           |
-|    remove_client     | クライアントを削除する。ホストを削除する場合には、ルームも解散する。           |
-|    generate_token    | クライアントに対してトークンを生成する。secrets ライブラリを使用する。         |
-|    check_timeout     | それぞれのクライアントについてタイムアウトを確認する。                         |
-| notify_disconnection | タイムアウトしたクライアントにその旨を通知する                                 |
-|      broadcast       | 送信者以外にメッセージを送信する。is_authenticated メソッドで token を検証する |
-|   is_authenticated   | 引数の token と address の組み合わせを持つクライアントを検索する               |
+|         Method          | Description                                                                    |
+| :---------------------: | :----------------------------------------------------------------------------- |
+|       add_client        | クライアントを追加する。クライアントの name が重複しないようにする。           |
+|      remove_client      | クライアントを削除する。ホストを削除する場合には、ルームも解散する。           |
+|    remove_all_client    | すべてのクライアントを削除する。                                               |
+|     generate_token      | クライアントに対してトークンを生成する。secrets ライブラリを使用する。         |
+|      check_timeout      | それぞれのクライアントについてタイムアウトを確認する。                         |
+|  notify_disconnection   | タイムアウトしたクライアントにその旨を通知する                                 |
+|        broadcast        | 送信者以外にメッセージを送信する。is_authenticated メソッドで token を検証する |
+|    is_authenticated     | 引数の token と address の組み合わせを持つクライアントを検索する               |
+|   get_client_by_name    | name をキーにして ChatClient を取ってくる                                      |
+| delete_inactive_clients | アクティブでないアカウントを削除する                                           |
 
 ##### ChatClient Class
 
-|  Property  | Description                                      |
-| :--------: | :----------------------------------------------- |
-|  address   | クライアントの address。tuple で受け取る         |
-|    name    | クライアントの名前                               |
-|   token    | token                                            |
-|  is_host   | ホストか否か                                     |
-| udp_socket | クライアントにメッセージを送信するためのソケット |
+|      Property      | Description                                      |
+| :----------------: | :----------------------------------------------- |
+| MAX_INACTIVE_COUNT | 許容される inactive 数の MAX                     |
+|      address       | クライアントの address。tuple で受け取る         |
+|        name        | クライアントの名前                               |
+|       token        | token                                            |
+|      is_host       | ホストか否か                                     |
+|     udp_socket     | クライアントにメッセージを送信するためのソケット |
+|    last_active     | 最後にアクティブだった時                         |
+|   inactive_count   | inactive だった回数                              |
+|    last_active     | 最後にアクティブだった時                         |
+|     is_active      | 現在アクティブか                                 |
 
-|   Method   | Description                                                                         |
-| :--------: | :---------------------------------------------------------------------------------- |
-|    init    | address の tuple を受け取る                                                         |
-|    send    | self.udp_socket の sendto メソッドを使い、self.address に対してメッセージを送信する |
-| encode_msg | msg をエンコードする                                                                |
+|       Method       | Description                                                                         |
+| :----------------: | :---------------------------------------------------------------------------------- |
+|        init        | address の tuple を受け取る                                                         |
+|        send        | self.udp_socket の sendto メソッドを使い、self.address に対してメッセージを送信する |
+|    send_message    | send 関数内のヘルパー関数                                                           |
+| update_last_active | send 関数内の last_active の更新                                                    |
+| handle_send_error  | send 関数内の例外処理                                                               |
+|     encode_msg     | msg をエンコードする                                                                |
 
 #### Client
 
