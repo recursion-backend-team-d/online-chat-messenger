@@ -1,11 +1,12 @@
-from server.ChatRoom import ChatRoom
-from server.ChatClient import ChatClient
 import json
 import os
 import secrets
 import socket
 import sys
 import threading
+
+from server.ChatClient import ChatClient
+from server.ChatRoom import ChatRoom
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 

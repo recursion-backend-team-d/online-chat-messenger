@@ -1,28 +1,45 @@
 import json
 import socket
+import struct
 import time
 
 
 class ChatClient:
-    def __init__(self, address, name, is_host=False):
+    MAX_FALSE_COUNT = 3
+
+    def __init__(self, name, address, token, is_host=False):
         self.address = address  # (ip, port)
         self.name = name
-        self.token = None
+        self.token = token
         self.is_host = is_host
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.last_active = time.time()
+        self.false_count = 0
+        self.is_active = True
 
     def send(self, msg):
         try:
-            self.udp_socket.sendto(self.encode_msg(msg), self.address)
-            self.last_active = time.time()
+            self.send_message(msg)
+            self.update_last_active()
         except Exception as e:
-            print(f"Error sending message to {self.name}: {e}")
+            self.handle_send_error(e)
+
+    def send_message(self, msg):
+        encoded_msg = self.encode_msg(msg)
+        self.udp_socket.sendto(encoded_msg, self.address)
+
+    def update_last_active(self):
+        self.last_active = time.time()
+
+    def handle_send_error(self, error):
+        print(f"Error sending message to {self.name}: {error}")
+        self.false_count += 1
+        if self.false_count > self.MAX_FALSE_COUNT:
+            self.is_active = False
 
     def encode_msg(self, msg):
-        if msg.isjson():
-            return json.dumps(msg).encode('utf-8')
-        return msg.encode('utf-8')
-
-    def set_token(self, token):
-        self.token = token
+        room_name_size = 0
+        token_size = 0
+        header = struct.pack('!B B', room_name_size, token_size)
+        encoded_msg = json.dumps(msg).encode('utf-8')
+        return header + encoded_msg
