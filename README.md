@@ -133,20 +133,31 @@ ChatRoom o-- ChatClient
 ```mermaid
 classDiagram
 class Client {
+  +ROOM_NAME_SIZE: int
+  +NAME_SIZE: int
   +BUFFER_SIZE: int
-  +udp_socket: socket.socket
   +tcp_socket: socket.socket
-  +name: str
+  +udp_socket: socket.socket
+  +tcp_server_address: tuple
+  +udp_server_address: tuple
+  +client_udp_address: str
+  +client_udp_port: int
+  +name_size: int
+  +username: str
+  +room_name: str
+  +room_name_size: int
   +token: str
-  +address: tuple
+  +token_size: int
 
   +init(server_address, server_port): None
   +start(): None
-  +prompt_for_name(): str
+  +prompt_for_name(): None
+  +prompt_for_operation(): int
+  +prompt_for_roomname(): None
   +connect_server(): None
-  +receive(): None
-  +send_messages(username, msg): None
-  +encode_msg(): bytes
+  +join_room(): None
+  +send_messages(): None
+  +receive_messages(): None
 }
 ```
 
@@ -154,21 +165,34 @@ class Client {
 
 |  Property  | Description                  |
 | :--------: | :--------------------------- |
+| ROOM_NAME_SIZE | roomnameの最大サイズ |
+| NAME_SIZE | usernameの最大サイズ |
+| BUFFER_SIZE | 1度に送受信できるデータの最大サイズ |
 | tcp_socket | 接続を確立するためのソケット |
 | udp_socket | チャットのためのソケット     |
-|    name    | name                         |
+| tcp_server_address | TCP接続用のサーバのアドレス     |
+| udp_server_address | UDP接続用のサーバのアドレス     |
+| client_udp_address | クライアントのudp接続する際のIPアドレス     |
+| client_udp_port | クライアントのudp接続する際のポート番号     |
+|    name_size    | ユーザーのnameサイズ                         |
+|    username    | ユーザーの名前                    |
+|    room_name    | 部屋の名前                    |
+|    room_name_size    | 部屋の名前のサイズ                    |
 |   token    | token                        |
-|  address   | address                      |
+|   token_size    | tokenのサイズ                        |
 
 |     Method      | Description                                                                                                                                                                                     |
 | :-------------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 |      init       | サーバの address を tuple で受け取る                                                                                                                                                            |
 |      start      | connect_server を呼び出す。                                                                                                                                                                     |
-| prompt_for_name | name の入力を促す                                                                                                                                                                               |
+| prompt_for_name | username の入力を促す                                                                                                                                                                               |
+| prompt_for_operation | 部屋を作成するか参加するかの入力を促す                                                                                                                                                                               |
+| prompt_for_roomname | room_name の入力を促す                                                                                                                                                                               |
 | connect_server  | TCP でサーバに接続を行う                                                                                                                                                                        |
 |    join_room    | roomName の入力を受け付ける。リクエストを送り、サーバのレスポンスを待つ。正常にルームの作成(op 1)、参加(op 2)完了のレスポンスを受け取る。receive を別スレッドで呼び出す。同時に send を呼び出す |
 |     receive     | self.udp_socket でメッセージを受信する                                                                                                                                                          |
-|      send       | udp_socket でメッセージをルームに送信する                                                                                                                                                       |
+|      send_messages       | udp_socket でメッセージをサーバに送信する                                                                                                                                                       |
+|      receive_messages       | udp_socket でメッセージをサーバから受信する                                                                                                                                                       |
 
 ### Protocol
 
@@ -180,8 +204,9 @@ Client request -> Server response (accept) -> Server Shori -> Server response (c
 // op 1 (create room), op 2 (join room)
   // サーバの初期化（0）
   {
-    "roomName": "example"
-    "username": "example"
+    "username": "example",
+    "ip": "",
+    "port": "",
   }
 ```
 
