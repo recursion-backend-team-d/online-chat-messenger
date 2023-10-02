@@ -53,8 +53,10 @@ class Server {
   +init(address: tuple): None
   +start(): None
   +wait_for_client_conn(): None
-  +establish_chat(conn, client): None
+  +establish_chat(conn, client_address): None
+  +accept_request(conn)
   +receive(): None
+  +is_room_available(room_name): bool
   +create_room(room_name): None
   +assign_room(room_name): None
   +notify_available_rooms(conn): None
@@ -81,6 +83,9 @@ ChatRoom o-- ChatClient
 |       receive       | UDP ソケットでクライアントからのメッセージを読み取る。ヘッダの roomNameSize, tokenSize を読み取って、適切な ChatRoom の broadcast メソッドでメンバーにメッセージを送信する                                                                                                                                                                                                           |
 |     create_room     | クライアントのリクエストに基づいて、ChatRoom を作成する。Server の self.rooms に追加する。client を host にする                                                                                                                                                                                                                                                                      |
 |     assign_room     | クライアントのリクエストに基づいて、ChatRoom を割り当てる。self.rooms から対象のルームを探し、そのルームの add_client メソッドを介してクライアントを追加する。                                                                                                                                                                                                                       |
+| generate_token | tokenを生成する |
+| is_room_available | room_nameで指定されたルームに入室可能か返す |
+| accept_request | クライアントからのリクエストを受け取る。structモジュールで、room_name, etcに分割、デコードして返す |
 
 ##### ChatRoom Class
 
