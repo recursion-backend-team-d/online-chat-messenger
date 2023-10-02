@@ -7,7 +7,6 @@ import ChatClient
 import ChatRoom
 
 # TODO destroy empty room periodically
-# TODO operation, state
 
 
 class Server:
@@ -42,6 +41,8 @@ class Server:
         room_name, operation, state, operation_payload = self.accept_request()
         self.send_response(
             conn,
+            operation,
+            state,
             {"status": 202, "message": "Server ackowledged your request."})
 
         token = self.generate_token()
@@ -50,18 +51,25 @@ class Server:
             # Success
             if not self.find_room(room_name):
                 client = ChatClient(
-                    operation_payload['username'], client_address, token, True)
+                    operation_payload['username'],
+                    (operation_payload["ip"], operation_payload["port"],),
+                    token, True)
                 self.create_room(room_name, client)
                 self.send_response(
                     conn,
+                    operation,
+                    state,
                     {
                         "status": 201,
-                        "message": "Server successfully created a chat room."
+                        "message": "Server successfully created a chat room.",
+                        "token": token
                     })
             # Failure
             else:
                 self.send_response(
                     conn,
+                    operation,
+                    state,
                     {
                         "status": 400,
                         "message": "Requested chat room already exists."
@@ -73,16 +81,22 @@ class Server:
             if self.find_room(room_name):
                 client = ChatClient(
                     operation_payload['username'],
-                    client_address, token, False)
+                    (operation_payload["ip"], operation_payload["port"],),
+                    token, False)
                 if self.assign_room():
                     self.send_response(conn,
+                                       operation,
+                                       state,
                                        {
                                            "status": 200,
                                            "message": "Server successfully \
-                            assigned you to a chat room."
+                            assigned you to a chat room.",
+                                           "token": token
                                        })
                 else:
                     self.send_response(conn,
+                                       operation,
+                                       state,
                                        {
                                            "status": 400,
                                            "message": "Requested \
@@ -92,6 +106,8 @@ class Server:
             else:
                 self.send_response(
                     conn,
+                    operation,
+                    state,
                     {
                         "status": 400,
                         "message": "Requested chat room does not exist."
@@ -108,9 +124,9 @@ class Server:
         operation_payload = json.loads(operation_payload.decode('utf-8'))
         return room_name, operation, state, operation_payload
 
-    def send_response(self, conn, payload):
+    def send_response(self, conn, operation, state, payload):
         payload_data = json.dumps(payload).encode('utf-8')
-        header = struct.pack('!B B B 29s', 0, 0, 0, len(
+        header = struct.pack('!B B B 29s', 0, operation, state, len(
             payload_data).to_bytes(29, 'big'))
         conn.send(header + payload_data)
 
