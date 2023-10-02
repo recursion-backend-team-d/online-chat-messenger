@@ -13,7 +13,7 @@ class Server:
     BODY_SIZE = 4096
     MSG_HEADER_SIZE = 2
     MSG_BODY_SIZE = 2
-    TOKEN_SIZE = 255
+    TOKEN_SIZE = 125
 
     def __init__(self, tcp_address, udp_address):
         self.tcp_address = tcp_address
@@ -47,10 +47,11 @@ class Server:
     def establish_chat(self, conn):
         room_name, operation, state, operation_payload = self.receive_request(
             conn)
+        print(room_name, operation, state, operation_payload)
         self.send_response(
             conn,
             operation,
-            2,
+            1,
             {"status": 202, "message": "Server ackowledged your request."})
 
         token = self.generate_token()
@@ -66,7 +67,7 @@ class Server:
                 self.send_response(
                     conn,
                     operation,
-                    3,
+                    2,
                     {
                         "status": 201,
                         "message": "Server successfully created a chat room.",
@@ -77,7 +78,7 @@ class Server:
                 self.send_response(
                     conn,
                     operation,
-                    3,
+                    2,
                     {
                         "status": 400,
                         "message": "Requested chat room already exists."
@@ -91,24 +92,22 @@ class Server:
                     operation_payload['username'],
                     (operation_payload["ip"], operation_payload["port"],),
                     token, False)
-                if self.assign_room():
+                if self.assign_room(room_name, client):
                     self.send_response(conn,
                                        operation,
-                                       3,
+                                       2,
                                        {
                                            "status": 200,
-                                           "message": "Server successfully \
-                                            assigned you to a chat room.",
+                                           "message": "Server successfully assigned you to a chat room.",
                                            "token": token
                                        })
                 else:
                     self.send_response(conn,
                                        operation,
-                                       3,
+                                       2,
                                        {
                                            "status": 400,
-                                           "message": "Requested \
-                                           username is already taken."
+                                           "message": "Requested username is already taken."
                                        })
             # Failure
             else:
@@ -144,18 +143,30 @@ class Server:
             self.tcp_socket.close()
 
     def receive(self):
-        while True:
-            data, address = self.udp_socket.recv(Server.MSG_HEADER_SIZE)
-            room_name_size, token_size = struct.unpack(
-                'BB', data[0:Server.MSG_HEADER_SIZE])
-            room_name, token, msg = \
-                struct.unpack(f'{room_name_size}c{token_size}c \
-                        {Server.MSG_BODY_SIZE - room_name_size - token_size}',
-                              data[Server.MSG_HEADER_SIZE:])
-            if not self.rooms[room_name.decode()].broadcast(
-                    address, token, msg.decode()):
-                self.udp_socket.sendto(
-                    "You are not authenticated".encode('utf-8'), address)
+        try:
+            while True:
+                data, address = self.udp_socket.recvfrom(Server.BODY_SIZE)
+                room_name_size, token_size = struct.unpack(
+                    '!B B', data[:Server.MSG_HEADER_SIZE])
+                room_name = data[Server.MSG_HEADER_SIZE:Server.MSG_HEADER_SIZE +
+                                 room_name_size].decode('utf-8')
+                token = data[Server.MSG_HEADER_SIZE + room_name_size:Server.MSG_HEADER_SIZE +
+                             room_name_size + token_size].decode('utf-8')
+                payload = json.loads(
+                    data[Server.MSG_HEADER_SIZE + room_name_size + token_size:].decode('utf-8'))
+                if not self.rooms[room_name].broadcast(
+                        address, token, payload):
+                    header = struct.pack('!B B', 0, 0)
+                    body = {
+                        "sender": "Server",
+                        "message": "You are not authenticated"
+                    }
+                    body = json.dumps(body).encode('utf-8')
+                    self.udp_socket.sendto(
+                        header + body, address)
+        except Exception as e:
+            print(f'receive: {e}')
+            self.tcp_socket.close()
 
     def find_room(self, room_name):
         if room_name in self.rooms and len(self.rooms[room_name].clients) > 0:
@@ -167,15 +178,19 @@ class Server:
         self.rooms[room_name].add_client(client)
 
     def assign_room(self, room_name, client):
-        self.rooms[room_name].add_client(client)
+        if not self.rooms[room_name].add_client(client):
+            return False
+        return True
 
     def generate_token(self):
-        return secrets.token_bytes(Server.TOKEN_SIZE)
+        return secrets.token_hex(Server.TOKEN_SIZE)
 
     def destroy_empty_room_periodically(self):
         while True:
             empty_room = []
             for room in self.rooms.values():
+                room.check_timeout()
+                room.delete_inactive_clients()
                 if len(room.clients) == 0:
                     empty_room.append(room.name)
             for room_name in empty_room:

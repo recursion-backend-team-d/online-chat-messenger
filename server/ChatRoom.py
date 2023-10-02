@@ -47,7 +47,6 @@ class ChatRoom:
     def broadcast(self, address, token, msg):
         if not self.is_authenticated(address, token):
             return False
-        self.delete_inactive_clients(address, token)
         for client in self.clients.values():
             if (client.token, client.address) != (token, address):
                 client.send(msg)
@@ -62,7 +61,7 @@ class ChatRoom:
     def get_client_by_name(self, name):
         return self.clients.get(name)
 
-    def delete_inactive_clients(self, address, token):
+    def delete_inactive_clients(self):
         inactive_clients = []
         for client in self.clients.values():
             if not client.is_active:

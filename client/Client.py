@@ -9,12 +9,12 @@ class Client:
     NAME_SIZE = 255
     BUFFER_SIZE = 4096
 
-    def __init__(self, server_address='0.0.0.0', tcp_server_port=8000, udp_server_port=9000):
+    def __init__(self, server_address='localhost', tcp_server_port=8000, udp_server_port=9000):
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.tcp_server_address = (server_address, tcp_server_port)
         self.udp_server_address = (server_address, udp_server_port)
-        self.udp_socket.bind(('', 0))
+        self.udp_socket.bind(('localhost', 0))
         self.client_udp_address = self.udp_socket.getsockname()[0]
         self.client_udp_port = self.udp_socket.getsockname()[1]
         self.name_size = 0
@@ -67,6 +67,7 @@ class Client:
                 continue
 
             elif response_state == 2:
+                print(response_payload)
                 self.token = response_payload["token"]
                 self.token_size = len(self.token.encode('utf-8'))
                 print("Connection successfully established.")
@@ -119,8 +120,10 @@ class Client:
             while True:
                 message, _ = self.udp_socket.recvfrom(Client.BUFFER_SIZE)
                 room_name_size, token_size = struct.unpack("!B B", message[:2])
-                receive_payload = json.loads(message[2 + room_name_size + token_size:].decode('utf-8'))
-                print(f'{receive_payload["sender"]}: {receive_payload["message"]}')
+                receive_payload = json.loads(
+                    message[2 + room_name_size + token_size:].decode('utf-8'))
+                print(
+                    f'{receive_payload["sender"]}: {receive_payload["message"]}')
         finally:
             print('socket closig....')
             self.udp_socket.close()
@@ -135,12 +138,13 @@ class Client:
                     "sender": self.username,
                     "message": message_content,
                 }
-                body = self.room_name.encode('utf-8') + self.token.encode('utf-8') + json.dumps(send_payload).encode('utf-8')
+                body = self.room_name.encode(
+                    'utf-8') + self.token.encode('utf-8') + json.dumps(send_payload).encode('utf-8')
 
                 if len(header) + len(body) > Client.BUFFER_SIZE:
                     print(
-                        f'Messeges must be equal to \
-                            or less than {Client.BUFFER_SIZE - len(header) - self.room_name_size - self.token_size} bytes')
+                        f'Messeges must be equal to  or less than \
+                        {Client.BUFFER_SIZE - len(header) - self.room_name_size - self.token_size} bytes')
                     continue
                 message = header + body
                 self.udp_socket.sendto(message, self.udp_server_address)
