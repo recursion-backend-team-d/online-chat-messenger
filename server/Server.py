@@ -7,6 +7,7 @@ import ChatClient
 import ChatRoom
 
 # TODO destroy empty room periodically
+# TODO operation, state
 
 
 class Server:
@@ -73,13 +74,20 @@ class Server:
                 client = ChatClient(
                     operation_payload['username'],
                     client_address, token, False)
-                self.assign_room()
-                self.send_response(conn,
-                                   {
-                                       "status": 200,
-                                       "message": "Server successfully \
-                                       assigned you to a chat room."
-                                   })
+                if self.assign_room():
+                    self.send_response(conn,
+                                       {
+                                           "status": 200,
+                                           "message": "Server successfully \
+                            assigned you to a chat room."
+                                       })
+                else:
+                    self.send_response(conn,
+                                       {
+                                           "status": 400,
+                                           "message": "Requested \
+                                           username is already taken."
+                                       })
             # Failure
             else:
                 self.send_response(
@@ -115,10 +123,10 @@ class Server:
                 struct.unpack(f'{room_name_size}c{token_size}c \
                         {Server.MSG_BODY_SIZE - room_name_size - token_size}',
                               data[Server.MSG_HEADER_SIZE:])
-            # TODO token authentication
-            # TODO error response when broadcast fails
-            self.rooms[room_name.decode()].broadcast(
-                address, token, msg.decode())
+            if not self.rooms[room_name.decode()].broadcast(
+                    address, token, msg.decode()):
+                self.udp_socket.sendto(
+                    "You are not authenticated".encode('utf-8'), address)
 
     def find_room(self, room_name):
         if room_name in self.rooms and len(self.rooms[room_name].clients) > 0:
@@ -129,11 +137,9 @@ class Server:
 
     def create_room(self, room_name, client):
         self.rooms[room_name] = ChatRoom(room_name)
-        # TODO error response when add clients fails
         self.rooms[room_name].add_client(client)
 
     def assign_room(self, room_name, client):
-        # TODO error response when add clients fails
         self.rooms[room_name].add_client(client)
 
     def generate_token(self):
