@@ -4,8 +4,8 @@ import struct
 import threading
 import secrets
 import time
-import ChatClient
-import ChatRoom
+from ChatRoom import ChatRoom
+from ChatClient import ChatClient
 
 
 class Server:
@@ -39,12 +39,14 @@ class Server:
                 conn, _ = self.tcp_socket.accept()
                 threading.Thread(target=self.establish_chat,
                                  args=(conn,)).start()
-            finally:
+            except Exception as e:
+                print(f'wait_for_client_conn: {e}')
                 print('socket closing....')
                 self.tcp_socket.close()
 
     def establish_chat(self, conn):
-        room_name, operation, state, operation_payload = self.receive_request()
+        room_name, operation, state, operation_payload = self.receive_request(
+            conn)
         self.send_response(
             conn,
             operation,
@@ -120,19 +122,15 @@ class Server:
                     })
 
     def receive_request(self, conn):
-        try:
-            header = conn.recv(Server.HEADER_SIZE)
-            room_name_size, operation, state, operation_payload_size = \
-                struct.unpack('!B B B 29s', header)
-            room_name = conn.recv(int.from_bytes(room_name_size, 'big'))
-            room_name = room_name.decode()
-            operation_payload = conn.recv(
-                int.from_bytes(operation_payload_size, 'big'))
-            operation_payload = json.loads(operation_payload.decode('utf-8'))
-            return room_name, operation, state, operation_payload
-        finally:
-            print('socket closing....')
-            self.tcp_socket.close()
+        header = conn.recv(Server.HEADER_SIZE)
+        room_name_size, operation, state, operation_payload_size = \
+            struct.unpack('!B B B 29s', header)
+        room_name = conn.recv(room_name_size)
+        room_name = room_name.decode()
+        operation_payload = conn.recv(
+            int.from_bytes(operation_payload_size, 'big'))
+        operation_payload = json.loads(operation_payload)
+        return room_name, operation, state, operation_payload
 
     def send_response(self, conn, operation, state, payload):
         try:
@@ -140,7 +138,8 @@ class Server:
             header = struct.pack('!B B B 29s', 0, operation, state, len(
                 payload_data).to_bytes(29, 'big'))
             conn.send(header + payload_data)
-        finally:
+        except Exception as e:
+            print(f'send_response: {e}')
             print('socket closing....')
             self.tcp_socket.close()
 
@@ -161,9 +160,7 @@ class Server:
     def find_room(self, room_name):
         if room_name in self.rooms and len(self.rooms[room_name].clients) > 0:
             return True
-        else:
-            del self.rooms[room_name]
-            return False
+        return False
 
     def create_room(self, room_name, client):
         self.rooms[room_name] = ChatRoom(room_name)
@@ -179,7 +176,7 @@ class Server:
         while True:
             empty_room = []
             for room in self.rooms.values():
-                if len(room) == 0:
+                if len(room.clients) == 0:
                     empty_room.append(room.name)
             for room_name in empty_room:
                 del self.rooms[room_name]
