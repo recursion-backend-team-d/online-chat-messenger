@@ -35,9 +35,13 @@ class Server:
         self.tcp_socket.listen(10)
 
         while True:
-            conn, _ = self.tcp_socket.accept()
-            threading.Thread(target=self.establish_chat,
-                             args=(conn,)).start()
+            try:
+                conn, _ = self.tcp_socket.accept()
+                threading.Thread(target=self.establish_chat,
+                                 args=(conn,)).start()
+            finally:
+                print('socket closing....')
+                self.tcp_socket.close()
 
     def establish_chat(self, conn):
         room_name, operation, state, operation_payload = self.accept_request()
@@ -116,21 +120,29 @@ class Server:
                     })
 
     def accept_request(self, conn):
-        header = conn.recv(Server.HEADER_SIZE)
-        room_name_size, operation, state, operation_payload_size = \
-            struct.unpack('!B B B 29s', header)
-        room_name = conn.recv(int.from_bytes(room_name_size, 'big'))
-        room_name = room_name.decode()
-        operation_payload = conn.recv(
-            int.from_bytes(operation_payload_size, 'big'))
-        operation_payload = json.loads(operation_payload.decode('utf-8'))
-        return room_name, operation, state, operation_payload
+        try:
+            header = conn.recv(Server.HEADER_SIZE)
+            room_name_size, operation, state, operation_payload_size = \
+                struct.unpack('!B B B 29s', header)
+            room_name = conn.recv(int.from_bytes(room_name_size, 'big'))
+            room_name = room_name.decode()
+            operation_payload = conn.recv(
+                int.from_bytes(operation_payload_size, 'big'))
+            operation_payload = json.loads(operation_payload.decode('utf-8'))
+            return room_name, operation, state, operation_payload
+        finally:
+            print('socket closing....')
+            self.tcp_socket.close()
 
     def send_response(self, conn, operation, state, payload):
-        payload_data = json.dumps(payload).encode('utf-8')
-        header = struct.pack('!B B B 29s', 0, operation, state, len(
-            payload_data).to_bytes(29, 'big'))
-        conn.send(header + payload_data)
+        try:
+            payload_data = json.dumps(payload).encode('utf-8')
+            header = struct.pack('!B B B 29s', 0, operation, state, len(
+                payload_data).to_bytes(29, 'big'))
+            conn.send(header + payload_data)
+        finally:
+            print('socket closing....')
+            self.tcp_socket.close()
 
     def receive(self):
         while True:
