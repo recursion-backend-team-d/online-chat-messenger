@@ -44,15 +44,15 @@ class Server:
                 self.tcp_socket.close()
 
     def establish_chat(self, conn):
-        room_name, operation, state, operation_payload = self.accept_request()
+        room_name, operation, state, operation_payload = self.receive_request()
         self.send_response(
             conn,
             operation,
-            state,
+            2,
             {"status": 202, "message": "Server ackowledged your request."})
 
         token = self.generate_token()
-        # Create a new chat room
+        # 新しいルームを作る
         if operation == 1:
             # Success
             if not self.find_room(room_name):
@@ -64,7 +64,7 @@ class Server:
                 self.send_response(
                     conn,
                     operation,
-                    state,
+                    3,
                     {
                         "status": 201,
                         "message": "Server successfully created a chat room.",
@@ -75,13 +75,13 @@ class Server:
                 self.send_response(
                     conn,
                     operation,
-                    state,
+                    3,
                     {
                         "status": 400,
                         "message": "Requested chat room already exists."
                     })
 
-        # Join a existing room
+        # 既存のルームに入る
         if operation == 2:
             # Success
             if self.find_room(room_name):
@@ -92,17 +92,17 @@ class Server:
                 if self.assign_room():
                     self.send_response(conn,
                                        operation,
-                                       state,
+                                       3,
                                        {
                                            "status": 200,
                                            "message": "Server successfully \
-                            assigned you to a chat room.",
+                                            assigned you to a chat room.",
                                            "token": token
                                        })
                 else:
                     self.send_response(conn,
                                        operation,
-                                       state,
+                                       3,
                                        {
                                            "status": 400,
                                            "message": "Requested \
@@ -113,13 +113,13 @@ class Server:
                 self.send_response(
                     conn,
                     operation,
-                    state,
+                    3,
                     {
                         "status": 400,
                         "message": "Requested chat room does not exist."
                     })
 
-    def accept_request(self, conn):
+    def receive_request(self, conn):
         try:
             header = conn.recv(Server.HEADER_SIZE)
             room_name_size, operation, state, operation_payload_size = \

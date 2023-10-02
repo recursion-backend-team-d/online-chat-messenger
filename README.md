@@ -203,12 +203,10 @@ class Client {
 |      send_messages       | udp_socket でメッセージをサーバに送信する                                                                                                                                                       |
 |      receive_messages       | udp_socket でメッセージをサーバから受信する                                                                                                                                                       |
 
-### Protocol
-
-Client request -> Server response (accept) -> Server Shori -> Server response (completed)
-
+### TCP
+- ヘッダー（32バイト）：RoomNameSize（1バイト） | Operation（1バイト） | State（1バイト） | OperationPayloadSize（29バイト）
+- ボディ：最初のRoomNameSizeバイトがルーム名で、その後にOperationPayloadSizeバイトが続きます。ルーム名の最大バイト数は2^8バイトであり、OperationPayloadSizeの最大バイト数は2^29バイトです。
 #### Client Request
-
 ```json
 // op 1 (create room), op 2 (join room)
   // サーバの初期化（0）
@@ -220,7 +218,6 @@ Client request -> Server response (accept) -> Server Shori -> Server response (c
 ```
 
 #### Server Response
-
 ```json
 // op 1 (create room), op 2 (join room)
   // リクエストの応答（1）
@@ -236,3 +233,8 @@ Client request -> Server response (accept) -> Server Shori -> Server response (c
     "token" "example token"
   }
 ```
+
+### UDP
+- Client側でメッセージのサイズを検証。4096を超えたら再入力を促す。
+- ヘッダー：RoomNameSize（1バイト）| TokenSize（1バイト）
+- ボディ：最初のRoomNameSizeバイトはルーム名、次のTokenSizeバイトはトークン文字列、そしてその残りが実際のメッセージです。
