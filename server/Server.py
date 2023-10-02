@@ -3,10 +3,9 @@ import socket
 import struct
 import threading
 import secrets
+import time
 import ChatClient
 import ChatRoom
-
-# TODO destroy empty room periodically
 
 
 class Server:
@@ -16,28 +15,31 @@ class Server:
     MSG_BODY_SIZE = 2
     TOKEN_SIZE = 255
 
-    def __init__(self, address):
-        self.address = address
+    def __init__(self, tcp_address, udp_address):
+        self.tcp_address = tcp_address
+        self.udp_address = udp_address
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.rooms = {}
 
-        self.tcp_socket.bind(self.address)
-        self.udp_socket.bind(self.address)
+        self.tcp_socket.bind(self.tcp_address)
+        self.udp_socket.bind(self.udp_address)
 
     def start(self):
         threading.Thread(target=self.wait_for_client_con, daemon=True).start()
         threading.Thread(target=self.receive, daemon=True).start()
+        threading.Thread(
+            target=self.destroy_empty_room_periodically, daemon=True).start()
 
     def wait_for_client_con(self):
         self.tcp_socket.listen(10)
 
         while True:
-            conn, client_address = self.tcp_socket.accept()
+            conn, _ = self.tcp_socket.accept()
             threading.Thread(target=self.establish_chat,
-                             args=(conn, client_address,)).start()
+                             args=(conn,)).start()
 
-    def establish_chat(self, conn, client_address):
+    def establish_chat(self, conn):
         room_name, operation, state, operation_payload = self.accept_request()
         self.send_response(
             conn,
@@ -160,6 +162,16 @@ class Server:
 
     def generate_token(self):
         return secrets.token_bytes(Server.TOKEN_SIZE)
+
+    def destroy_empty_room_periodically(self):
+        while True:
+            empty_room = []
+            for room in self.rooms.values():
+                if len(room) == 0:
+                    empty_room.append(room.name)
+            for room_name in empty_room:
+                del self.rooms[room_name]
+            time.sleep(10)
 
 
 if __name__ == "__main__":
