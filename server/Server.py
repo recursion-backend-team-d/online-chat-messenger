@@ -3,16 +3,10 @@ import socket
 import struct
 import threading
 import secrets
+import ChatClient
+import ChatRoom
 
 # TODO destroy empty room periodically
-
-
-class ChatRoom:
-    pass
-
-
-class ChatClient:
-    pass
 
 
 class Server:
@@ -36,8 +30,7 @@ class Server:
         threading.Thread(target=self.receive, daemon=True).start()
 
     def wait_for_client_con(self):
-        # TODO listen arg
-        self.tcp_socket.listen()
+        self.tcp_socket.listen(10)
 
         while True:
             conn, client_address = self.tcp_socket.accept()
@@ -46,7 +39,9 @@ class Server:
 
     def establish_chat(self, conn, client_address):
         room_name, operation, state, operation_payload = self.accept_request()
-        # TODO accept response
+        self.send_response(
+            conn,
+            {"status": 202, "message": "Server ackowledged your request."})
 
         token = self.generate_token()
         # Create a new chat room
@@ -56,11 +51,20 @@ class Server:
                 client = ChatClient(
                     operation_payload['username'], client_address, token, True)
                 self.create_room(room_name, client)
-                # TODO success response
+                self.send_response(
+                    conn,
+                    {
+                        "status": 201,
+                        "message": "Server successfully created a chat room."
+                    })
             # Failure
             else:
-                # TODO failure response
-                pass
+                self.send_response(
+                    conn,
+                    {
+                        "status": 400,
+                        "message": "Requested chat room already exists."
+                    })
 
         # Join a existing room
         if operation == 2:
@@ -70,27 +74,37 @@ class Server:
                     operation_payload['username'],
                     client_address, token, False)
                 self.assign_room()
-                # TODO success response
+                self.send_response(conn,
+                                   {
+                                       "status": 200,
+                                       "message": "Server successfully \
+                                       assigned you to a chat room."
+                                   })
             # Failure
             else:
-                # TODO failure response
-                pass
+                self.send_response(
+                    conn,
+                    {
+                        "status": 400,
+                        "message": "Requested chat room does not exist."
+                    })
 
     def accept_request(self, conn):
         header = conn.recv(Server.HEADER_SIZE)
-        body = conn.recv(Server.BODY_SIZE)
-        # TODO accept response
-        # TODO unpack error
         room_name_size, operation, state, operation_payload_size = \
-            struct.unpack('BBB29c', header)
-        room_name, operation_payload = struct.unpack(
-            f'{room_name_size}c{operation_payload_size}c', body)
+            struct.unpack('!B B B 29s', header)
+        room_name = conn.recv(int.from_bytes(room_name_size, 'big'))
         room_name = room_name.decode()
-        operation_payload = json.loads(operation_payload)
+        operation_payload = conn.recv(
+            int.from_bytes(operation_payload_size, 'big'))
+        operation_payload = json.loads(operation_payload.decode('utf-8'))
         return room_name, operation, state, operation_payload
 
-    def send_response(self, conn, status, msg):
-        pass
+    def send_response(self, conn, payload):
+        payload_data = json.dumps(payload).encode('utf-8')
+        header = struct.pack('!B B B 29s', 0, 0, 0, len(
+            payload_data).to_bytes(29, 'big'))
+        conn.send(header + payload_data)
 
     def receive(self):
         while True:
