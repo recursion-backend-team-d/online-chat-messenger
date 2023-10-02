@@ -50,16 +50,17 @@ class Server {
   +udp_socket: socket.socket
   +rooms: dict
 
-  +init(address: tuple): None
+  +init(tcp_address: tuple, udp_address: tuple): None
   +start(): None
   +wait_for_client_conn(): None
-  +establish_chat(conn, client_address): None
+  +establish_chat(conn): None
   +accept_request(conn)
+  +send_response(conn, operation, state, payload): None
+  +find_room(room_name): bool
+  +create_room(room_name, client): bool
+  +assign_room(room_name, client): bool
   +receive(): None
-  +is_room_available(room_name): bool
-  +create_room(room_name): None
-  +assign_room(room_name): None
-  +notify_available_rooms(conn): None
+  +destoroy_empty_room_periodically(): None
 }
 Server o-- ChatRoom
 ChatRoom o-- ChatClient
@@ -69,23 +70,26 @@ ChatRoom o-- ChatClient
 
 |  Property  | Description                                                                                                                                              |
 | :--------: | :------------------------------------------------------------------------------------------------------------------------------------------------------- |
-|  address   | tuple で address を受け取る。ソケットを作成する時の引数でもタプルで扱うし、init の引数やプロパティもクラスのプロパティも少なくなるので見通し良くなりそう |
+|  tcp_address   | tuple で address を受け取る。ソケットを作成する時の引数でもタプルで扱うし、init の引数やプロパティもクラスのプロパティも少なくなるので見通し良くなりそう |
+|  udp_address   |  |
 | tcp_socket | クライアントと接続を確立する他確立するためのソケット                                                                                                     |
 | udp_socket | クライアントとチャットをするために用いるするために用いるソケット                                                                                         |
 |   rooms    | ChatRoom を格納しておくための dict key=roomName, value=ChatRoom                                                                                          |
 
 |       Method        | Description                                                                                                                                                                                                                                                                                                                                                                          |
 | :-----------------: | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-|        init         |                                                                                                                                                                                                                                                                                                                                                                                      |
-|        start        | サーバーをスタートする。wait_for_client_con, receive メソッドをそれぞれ別スレッドで呼び出す                                                                                                                                                                                                                                                                                          |
-| wait_for_client_con | クライアントの TCP 接続を listen しておく。accept するたびに、別スレッドで establish_chat を呼び出す。その時に、accept の戻り値である、新しく作られたソケットオブジェクトと接続先情報を establish_chat に渡す。                                                                                                                                                                      |
-|   establish_chat    | 引数として受け取ったソケットオブジェクト conn を用いて、クライアントとやり取りする。notify_available_rooms に conn を渡して呼び出し接続可能なルームをクライアントに知らせる。データを受信したのち、ヘッダーの Operation によって create_room か assign_room を呼び出す。その時に ChatClient クラスをインスタンス化してクライアントを作る。状態ごとに、クライアントにレスポンスを送る |
-|       receive       | UDP ソケットでクライアントからのメッセージを読み取る。ヘッダの roomNameSize, tokenSize を読み取って、適切な ChatRoom の broadcast メソッドでメンバーにメッセージを送信する                                                                                                                                                                                                           |
-|     create_room     | クライアントのリクエストに基づいて、ChatRoom を作成する。Server の self.rooms に追加する。client を host にする                                                                                                                                                                                                                                                                      |
-|     assign_room     | クライアントのリクエストに基づいて、ChatRoom を割り当てる。self.rooms から対象のルームを探し、そのルームの add_client メソッドを介してクライアントを追加する。                                                                                                                                                                                                                       |
-| generate_token | tokenを生成する |
-| is_room_available | room_nameで指定されたルームに入室可能か返す |
+|        init         | TCP / UDP addresをtupleで受け取る |
+|        start        | サーバーをスタートする。wait_for_client_con, destoroy_empty_room_periodicallyメソッドをそれぞれ別スレッドで呼び出す。receiveはメインスレッドで呼び出す。                                                                                                                                                                                                                                                                                          |
+| wait_for_client_con | クライアントの TCP 接続を listen しておく。accept するたびに、別スレッドで establish_chat を呼び出す。その時に、accept の戻り値である、新しく作られたソケットオブジェクトを establish_chat に渡す。                                                                                                                                                                      |
+|   establish_chat    | 引数として受け取ったソケットオブジェクト conn を用いて、クライアントとやり取りする。データを受信したのち、ヘッダーの Operation によって create_room か assign_room を呼び出す。その時に ChatClient クラスをインスタンス化してクライアントを作る。インスタンス化には、リクエストのpayloadにあるUDPソケットのIP/ポート番号を渡す。状態ごとに、クライアントにレスポンスを送る |
 | accept_request | クライアントからのリクエストを受け取る。structモジュールで、room_name, etcに分割、デコードして返す |
+| send_response | TCPでレスポンスを返す |
+| find_room | 指定されたroom_nameのルームが存在するか判定する|
+|     create_room     | クライアントのリクエストに基づいて、ChatRoom を作成する。Server の self.rooms に追加する。client を host にする。追加に失敗したらその旨をクライアントにレスポンスする。                                                                                                                                                                                                                                                                      |
+|     assign_room     | クライアントのリクエストに基づいて、ChatRoom を割り当てる。self.rooms から対象のルームを探し、そのルームの add_client メソッドを介してクライアントを追加する。追加できたかboolで返す。                                                                                                                                                                                                                       |
+|       receive       | UDP ソケットでクライアントからのメッセージを読み取る。ヘッダの roomNameSize, tokenSize を読み取って、適切な ChatRoom の broadcast メソッドでメンバーにメッセージを送信する。追加できたかboolで返す。                                                                                                                                                                                                           |
+| generate_token | tokenを生成する |
+| destoroy_empty_room_periodically | クライアンいないルームを定期的に削除する |
 
 ##### ChatRoom Class
 

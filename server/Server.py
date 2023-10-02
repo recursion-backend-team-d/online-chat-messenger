@@ -27,9 +27,9 @@ class Server:
 
     def start(self):
         threading.Thread(target=self.wait_for_client_con, daemon=True).start()
-        threading.Thread(target=self.receive, daemon=True).start()
         threading.Thread(
             target=self.destroy_empty_room_periodically, daemon=True).start()
+        self.receive()
 
     def wait_for_client_con(self):
         self.tcp_socket.listen(10)
