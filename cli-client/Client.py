@@ -67,9 +67,13 @@ class Client:
             if response_state == 1:
                 print("Received a request response from the server.")
                 print(response_payload["message"])
+                if response_payload["status"] != 202:
+                    break
                 continue
 
             elif response_state == 2:
+                if response_payload["status"] != 200 and response_payload["status"] != 201:
+                    break
                 print(response_payload)
                 self.token = response_payload["token"]
                 self.token_size = len(self.token.encode('utf-8'))
