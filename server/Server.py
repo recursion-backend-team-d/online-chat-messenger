@@ -98,7 +98,7 @@ class Server:
                     token, False)
 
                 room_to_join = self.find_room(room_name)
-                if (room_to_join.is_password_required and "password" not in operation_payload):
+                if room_to_join.is_password_required and "password" not in operation_payload:
                     self.send_response(conn,
                                        operation,
                                        2,
@@ -106,6 +106,17 @@ class Server:
                                            "status": 400,
                                            "message": "Room password is required",
                                        })
+                    return
+                if room_to_join.is_password_required and \
+                        room_to_join.password != operation_payload["password"]:
+                    self.send_response(conn,
+                                       operation,
+                                       2,
+                                       {
+                                           "status": 400,
+                                           "message": "Wrong room password",
+                                       })
+                    return
                 if self.assign_room(room_name, client):
                     self.send_response(conn,
                                        operation,
