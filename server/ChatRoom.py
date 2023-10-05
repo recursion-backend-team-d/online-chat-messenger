@@ -4,10 +4,12 @@ import time
 class ChatRoom:
     TIMEOUT = 300
 
-    def __init__(self, name):
+    def __init__(self, name, password=""):
         self.clients = {}  # {name: ChatClient}
         self.verified_token_to_address = {}  # {token: address}
         self.name = name
+        self.is_password_required = (password != "")
+        self.password = password
 
     def add_client(self, client):
         if client.name in self.clients:

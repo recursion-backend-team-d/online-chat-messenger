@@ -63,7 +63,11 @@ class Server:
                     operation_payload['username'],
                     (operation_payload["ip"], operation_payload["port"],),
                     token, True)
-                self.create_room(room_name, client)
+                # パスワードがpayloadにあれば、ルームにそれを付与する
+                if "password" in operation_payload:
+                    self.create_room(room_name, client, operation_payload["password"])
+                else:
+                    self.create_room(room_name, client)
                 self.send_response(
                     conn,
                     operation,
@@ -92,6 +96,16 @@ class Server:
                     operation_payload['username'],
                     (operation_payload["ip"], operation_payload["port"],),
                     token, False)
+
+                room_to_join = self.find_room(room_name)
+                if (room_to_join.is_password_required and "password" not in operation_payload):
+                    self.send_response(conn,
+                                       operation,
+                                       2,
+                                       {
+                                           "status": 400,
+                                           "message": "Room password is required",
+                                       })
                 if self.assign_room(room_name, client):
                     self.send_response(conn,
                                        operation,
@@ -170,11 +184,11 @@ class Server:
 
     def find_room(self, room_name):
         if room_name in self.rooms and len(self.rooms[room_name].clients) > 0:
-            return True
-        return False
+            return self.rooms[room_name]
+        return None
 
-    def create_room(self, room_name, client):
-        self.rooms[room_name] = ChatRoom(room_name)
+    def create_room(self, room_name, client, password=""):
+        self.rooms[room_name] = ChatRoom(room_name, password)
         self.rooms[room_name].add_client(client)
 
     def assign_room(self, room_name, client):
