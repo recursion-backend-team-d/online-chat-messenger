@@ -4,6 +4,8 @@ import { BrowserWindow, app } from "electron";
 const createWindow = () => {
   const mainWindow = new BrowserWindow({
     webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
       preload: path.resolve(__dirname, "preload.js"),
     },
   });

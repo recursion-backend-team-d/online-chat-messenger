@@ -54,9 +54,13 @@ const preload: Configuration = {
 
 const renderer: Configuration = {
   ...common,
-  target: "web",
+  target: "electron-renderer",  // <-- この行を変更します
   entry: {
     app: "./src/web/index.tsx",
+  },
+  externals: {                   // <-- この部分を追加します
+    dgram: 'commonjs dgram',
+    net: 'commonjs net'
   },
   plugins: [
     new MiniCssExtractPlugin(),
