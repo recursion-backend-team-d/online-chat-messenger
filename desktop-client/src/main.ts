@@ -9,6 +9,12 @@ const createWindow = () => {
   });
 
   mainWindow.loadFile("dist/index.html");
+  const secondWindow = new BrowserWindow({
+    webPreferences: {
+      preload: path.resolve(__dirname, "preload.js"),
+    },
+  });
+  secondWindow.loadFile("dist/index.html");
   // mainWindow.webContents.openDevTools({ mode: "detach" });
 };
 
