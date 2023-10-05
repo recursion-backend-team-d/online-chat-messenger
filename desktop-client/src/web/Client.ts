@@ -1,14 +1,8 @@
 import * as dgram from 'dgram';
 import * as net from 'net';
-import * as readline from 'readline';
 import { Buffer } from 'buffer';
 
 
-// type PayloadType = {
-//     username: string;
-//     ip: string;
-//     port: number;
-// };
 
 type MessageCallback = (sender: string, message: string) => void;
 
@@ -19,6 +13,7 @@ export class Client {
     private static readonly SERVER_ADDRESS = 'localhost';
     private static readonly TCP_PORT = 8000;
     private static readonly UDP_PORT = 9000;
+    private static readonly TIMEOUT_MS = 5000; // 例: 5秒
 
     public tcpSocket: net.Socket;
     public udpSocket: dgram.Socket;
@@ -112,65 +107,131 @@ export class Client {
         while (true) {
             console.log("Success request!!")
 
-            const headerBuffer = await this.getResponseData(32);
+            // const headerBuffer = await this.getResponseData(32);
 
-            const readHeader = (data: Buffer) => {
-                const roomNameSize = data.readUInt8(0);
-                const operation = data.readUInt8(1);
-                const state = data.readUInt8(2);
-            
-                // 29バイトの長さを持つpayload_lengthをBigIntとして読み取る
-                const payloadLengthData = data.subarray(3, 32);
-                let payloadLength = 0n; // BigIntの初期値
-                for (let i = 0; i < payloadLengthData.length; i++) {
-                    payloadLength = (payloadLength * 256n) + BigInt(payloadLengthData[i]);
+            try {
+                const headerBuffer = await Promise.race([
+                    this.getResponseData(32),
+                    this.timeout(Client.TIMEOUT_MS)
+                ]);
+    
+                const readHeader = (data: Buffer) => {
+                    const roomNameSize = data.readUInt8(0);
+                    const operation = data.readUInt8(1);
+                    const state = data.readUInt8(2);
+                
+                    // 29バイトの長さを持つpayload_lengthをBigIntとして読み取る
+                    const payloadLengthData = data.subarray(3, 32);
+                    let payloadLength = 0n; // BigIntの初期値
+                    for (let i = 0; i < payloadLengthData.length; i++) {
+                        payloadLength = (payloadLength * 256n) + BigInt(payloadLengthData[i]);
+                    }
+                
+                    return {
+                        roomNameSize,
+                        operation,
+                        state,
+                        payloadLength: Number(payloadLength) // 必要に応じてBigIntのまま使うこともできます
+                    };
                 }
-            
-                return {
-                    roomNameSize,
-                    operation,
-                    state,
-                    payloadLength: Number(payloadLength) // 必要に応じてBigIntのまま使うこともできます
-                };
-            }
-            
-            // headerBufferを解析
-            const header = readHeader(headerBuffer);
-            
-            console.log(header);
-
-            console.log("receiving responsePayload")
-
-            const responsePayloadDate =  await this.getResponseData(header.payloadLength);
-
-            // let responsePayloadData: Buffer;
-            // if (this.residualData === null || this.residualData.length < header.payloadLength){
-            //     responsePayloadData = await this.readFromSocket(this.tcpSocket, header.payloadLength);    
-            // }
-            // else {
-            //     responsePayloadData = this.residualData.subarray(0, header.payloadLength)
-            //     this.residualData = this.residualData.subarray(header.payloadLength)
-            // }
-
-            console.log("get responsePayload")
-            console.log(responsePayloadDate);
-            const responsePayload = JSON.parse(responsePayloadDate.toString('utf-8'));
-
-
-            if (header.state === 1) {
-                console.log("Received a request response from the server.");
-                console.log(responsePayload.message);
-                continue;
-            } else if (header.state === 2) {
-                console.log(responsePayload);
-                this.token = responsePayload.token;
-                console.log(this.token);
-                this.tokenSize = Buffer.from(this.token, 'hex').length;
-                console.log(this.tokenSize);
-                console.log("Connection successfully established.");
+                    
+                
+                // headerBufferを解析
+                const header = readHeader(headerBuffer);
+                
+                console.log(header);
+    
+                console.log("receiving responsePayload")
+    
+                const responsePayloadDate =  await this.getResponseData(header.payloadLength);
+    
+                console.log("get responsePayload")
+                console.log(responsePayloadDate);
+                const responsePayload = JSON.parse(responsePayloadDate.toString('utf-8'));
+    
+    
+                if (header.state === 1) {
+                    console.log("Received a request response from the server.");
+                    console.log(responsePayload.message);
+                    continue;
+                } else if (header.state === 2) {
+                    console.log(responsePayload);
+                    this.token = responsePayload.token;
+                    console.log(this.token);
+                    this.tokenSize = Buffer.from(this.token, 'hex').length;
+                    console.log(this.tokenSize);
+                    console.log("Connection successfully established.");
+                    this.tcpSocket.end();
+                    break;
+                }
+            } catch (error) {
+                if (typeof error === 'string') {
+                    console.error("Error sending message:", error);
+                } else if (error instanceof Error) {
+                    console.error("Error sending message:", error.message);
+                } else {
+                    console.error("An unknown error occurred when sending message:", error);
+                }
+                console.log('socket closing...');
                 this.tcpSocket.end();
-                break;
+                return; // またはエラーをUIに伝えるための処理
             }
+
+            // try {
+            //     const headerBuffer = await Promise.race([
+            //         this.getResponseData(32),
+            //         this.timeout(Client.TIMEOUT_MS)
+            //     ]);
+
+            // const readHeader = (data: Buffer) => {
+            //     const roomNameSize = data.readUInt8(0);
+            //     const operation = data.readUInt8(1);
+            //     const state = data.readUInt8(2);
+            
+            //     // 29バイトの長さを持つpayload_lengthをBigIntとして読み取る
+            //     const payloadLengthData = data.subarray(3, 32);
+            //     let payloadLength = 0n; // BigIntの初期値
+            //     for (let i = 0; i < payloadLengthData.length; i++) {
+            //         payloadLength = (payloadLength * 256n) + BigInt(payloadLengthData[i]);
+            //     }
+            
+            //     return {
+            //         roomNameSize,
+            //         operation,
+            //         state,
+            //         payloadLength: Number(payloadLength) // 必要に応じてBigIntのまま使うこともできます
+            //     };
+            // }
+                
+            
+            // // headerBufferを解析
+            // const header = readHeader(headerBuffer);
+            
+            // console.log(header);
+
+            // console.log("receiving responsePayload")
+
+            // const responsePayloadDate =  await this.getResponseData(header.payloadLength);
+
+            // console.log("get responsePayload")
+            // console.log(responsePayloadDate);
+            // const responsePayload = JSON.parse(responsePayloadDate.toString('utf-8'));
+
+
+            // if (header.state === 1) {
+            //     console.log("Received a request response from the server.");
+            //     console.log(responsePayload.message);
+            //     continue;
+            // } else if (header.state === 2) {
+            //     console.log(responsePayload);
+            //     this.token = responsePayload.token;
+            //     console.log(this.token);
+            //     this.tokenSize = Buffer.from(this.token, 'hex').length;
+            //     console.log(this.tokenSize);
+            //     console.log("Connection successfully established.");
+            //     this.tcpSocket.end();
+            //     break;
+            // }
         }
     }
 
@@ -287,4 +348,10 @@ export class Client {
             console.log('Socket closing...');
         });
     }
+
+    // タイムアウトを処理するためのユーティリティ関数
+    private timeout(ms: number): Promise<never> {
+        return new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms));
+    }
+    
 }
