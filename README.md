@@ -30,8 +30,10 @@ class ChatRoom {
   -clients: dict
   -verified_token_to_address: dict
   -name: str
+  -is_password_required: bool
+  -password: str
 
-  +init(name: str)
+  +init(name: str, password: str)
   +add_client(client: ChatClient): bool
   +remove_client(name: str): None
   +remove_all_clients(): None
@@ -56,7 +58,7 @@ class Server {
   +establish_chat(conn): None
   +accept_request(conn)
   +send_response(conn, operation, state, payload): None
-  +find_room(room_name): bool
+  +find_room(room_name): ChatRoom
   +create_room(room_name, client): bool
   +assign_room(room_name, client): bool
   +receive(): None
@@ -84,7 +86,7 @@ ChatRoom o-- ChatClient
 |   establish_chat    | 引数として受け取ったソケットオブジェクト conn を用いて、クライアントとやり取りする。データを受信したのち、ヘッダーの Operation によって create_room か assign_room を呼び出す。その時に ChatClient クラスをインスタンス化してクライアントを作る。インスタンス化には、リクエストのpayloadにあるUDPソケットのIP/ポート番号を渡す。状態ごとに、クライアントにレスポンスを送る |
 | accept_request | クライアントからのリクエストを受け取る。structモジュールで、room_name, etcに分割、デコードして返す |
 | send_response | TCPでレスポンスを返す |
-| find_room | 指定されたroom_nameのルームが存在するか判定する|
+| find_room | 指定されたroom_nameのルームが存在すればそれを返す |
 |     create_room     | クライアントのリクエストに基づいて、ChatRoom を作成する。Server の self.rooms に追加する。client を host にする。追加に失敗したらその旨をクライアントにレスポンスする。                                                                                                                                                                                                                                                                      |
 |     assign_room     | クライアントのリクエストに基づいて、ChatRoom を割り当てる。self.rooms から対象のルームを探し、そのルームの add_client メソッドを介してクライアントを追加する。追加できたかboolで返す。                                                                                                                                                                                                                       |
 |       receive       | UDP ソケットでクライアントからのメッセージを読み取る。ヘッダの roomNameSize, tokenSize を読み取って、適切な ChatRoom の broadcast メソッドでメンバーにメッセージを送信する。追加できたかboolで返す。                                                                                                                                                                                                           |
@@ -99,6 +101,8 @@ ChatRoom o-- ChatClient
 |          clients          | クライアントを dict で管理する。key=name, value=ChatClient ? |
 | verified_token_to_address | 参加したクライアントの token と address を dict で管理する   |
 |           name            | ルームの名前。                                               |
+| is_password_required | |
+| password | |
 
 |         Method          | Description                                                                    |
 | :---------------------: | :----------------------------------------------------------------------------- |
@@ -214,6 +218,7 @@ class Client {
     "username": "example",
     "ip": "",
     "port": "",
+    "password": "", // Optional
   }
 ```
 

@@ -23,6 +23,7 @@ class Client:
         self.room_name_size = 0
         self.token = ''
         self.token_size = 0
+        self.room_password = ""
 
     def start(self):
         self.prompt_for_name()
@@ -36,13 +37,15 @@ class Client:
 
     def join_room(self):
         operation = self.prompt_for_operation()
-        self.prompt_for_roomname()
+        self.prompt_for_room_name()
+        self.prompt_for_room_password()
 
         # サーバーへリクエストの送信
         payload = {
             "username": self.username,
             "ip": self.client_udp_address,
             "port": self.client_udp_port,
+            "password": self.room_password
         }
 
         payload_data = json.dumps(payload).encode('utf-8')
@@ -64,9 +67,13 @@ class Client:
             if response_state == 1:
                 print("Received a request response from the server.")
                 print(response_payload["message"])
+                if response_payload["status"] != 202:
+                    break
                 continue
 
             elif response_state == 2:
+                if response_payload["status"] != 200 and response_payload["status"] != 201:
+                    break
                 print(response_payload)
                 self.token = response_payload["token"]
                 self.token_size = len(self.token.encode('utf-8'))
@@ -86,11 +93,10 @@ class Client:
             choice = choice.replace(" ", "").lower()  # 空白を取り除いて、小文字に変換。
             if choice == 'create' or choice == 'join':  # 小文字に変換して空白を取り除く。
                 return 1 if choice == 'create' else 2
-                break  # 正しい入力がされたらループを抜ける
             else:
                 print("Invalid input. Please enter 'create' or 'join'.")
 
-    def prompt_for_roomname(self):
+    def prompt_for_room_name(self):
         while True:
             room_name = input("Enter room name: ")
             room_name_size = len(room_name.encode('utf-8'))
@@ -102,6 +108,9 @@ class Client:
             self.room_name = room_name
             self.room_name_size = room_name_size
             break
+
+    def prompt_for_room_password(self):
+        self.room_password = input("Enter room password or press enter to skip: ")
 
     def prompt_for_name(self):
         while True:
