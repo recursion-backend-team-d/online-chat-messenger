@@ -11,7 +11,7 @@ const createWindow = () => {
   });
 
   mainWindow.loadFile("dist/index.html");
-  mainWindow.webContents.openDevTools({ mode: "detach" }); // Open dev tools for mainWindow
+  mainWindow.webContents.openDevTools(); // Open dev tools for mainWindow
 
   const secondWindow = new BrowserWindow({
     webPreferences: {
@@ -21,7 +21,7 @@ const createWindow = () => {
     },
   });
   secondWindow.loadFile("dist/index.html");
-  secondWindow.webContents.openDevTools({ mode: "detach" }); // Open dev tools for secondWindow
+  secondWindow.webContents.openDevTools(); // Open dev tools for secondWindow
 };
 
 app.whenReady().then(() => {
