@@ -8,7 +8,7 @@ export class Client {
   private static readonly ROOM_NAME_SIZE = 255;
   private static readonly NAME_SIZE = 255;
   private static readonly BUFFER_SIZE = 4096;
-  private static readonly SERVER_ADDRESS = "localhost";
+  private static readonly SERVER_ADDRESS = "127.0.0.1";
   private static readonly TCP_PORT = 8000;
   private static readonly UDP_PORT = 9000;
   private static readonly TIMEOUT_MS = 5000; // 例: 5秒
@@ -17,7 +17,7 @@ export class Client {
   public udpSocket: dgram.Socket;
   private tcpServerAddress: [string, number];
   private udpServerAddress: [string, number];
-  private udpAddress: string = "";
+  private udpAddress: string = "127.0.0.1";
   private udpPort: number = 0;
   private nameSize: number = 0;
   private username: string = "";
@@ -38,8 +38,9 @@ export class Client {
       // Node.jsのaddress()メソッドは、ソケットがバインドされたアドレスを返す。
       // address() メソッドは、オブジェクト { port: number, family: string, address: string } を返す。
       const address = this.udpSocket.address();
-      this.udpAddress = address.address;
+      // this.udpAddress = address.address;
       this.udpPort = address.port;
+      console.log(address);
     });
     console.log("Success constructor");
   }
