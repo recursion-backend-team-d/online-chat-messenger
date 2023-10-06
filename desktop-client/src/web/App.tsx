@@ -14,7 +14,7 @@ import ChatRoom from "./ChatRoom";
 import _ from "lodash";
 
 const App: React.FC = () => {
-  const [client, setClient] = useState(new Client());
+  const [client, setClient] = useState<Client | undefined>(undefined);
   const [messages, setMessages] = useState<string[]>([]);
   const [userName, setUserName] = useState("");
   const [roomName, setRoomName] = useState("");
@@ -25,27 +25,24 @@ const App: React.FC = () => {
   const [isUserNameSet, setIsUserNameSet] = useState(false);
 
   const setUserNameAndProceed = () => {
-    setClient((client: Client) => {
-      let updatedClient = _.cloneDeep(client);
-      updatedClient.setName(userName);
-      return updatedClient;
-    });
+    let firstClient = new Client();
+    firstClient.setName(userName);
+    setClient(firstClient);
     setIsUserNameSet(true);
   };
 
   const handleRoomAction = async () => {
     if (roomAction === "create") {
-      await client.start(1, userName, roomName, password);
-      await client.start(2, userName, roomName, password);
+      await client?.start(1, userName, roomName, password);
       setIsUserInRoom(true);
     } else if (roomAction === "join") {
-      await client.start(2, userName, roomName, password);
+      await client?.start(2, userName, roomName, password);
       setIsUserInRoom(true);
     }
   };
 
   if (isUserInRoom) {
-    return <ChatRoom client={client} />;
+    return <ChatRoom client={client!} />;
   }
 
   return (
