@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -8,34 +8,59 @@ import {
   Textarea,
   Flex,
 } from "@chakra-ui/react";
+import { Client } from "./Client";
 
 interface Props {
-  userName: string;
-  roomName: string;
+  client: Client;
 }
 
-const ChatRoom: React.FC<Props> = ({ userName, roomName }) => {
+const ChatRoom: React.FC<Props> = ({ client }) => {
+  const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
-  const [input, setInput] = useState("");
 
-  const sendMessage = () => {
-    if (input.trim()) {
-      setMessages([...messages, `${userName}: ${input}`]);
-      setInput("");
+  useEffect(() => {
+    const messageCallback = (sender: string, messageContent: string) => {
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        `${sender}: ${messageContent}`,
+      ]);
+    };
+
+    client.receiveMessages(messageCallback);
+
+    return () => {
+      client.removeMessageListener(messageCallback);
+    };
+  }, [client]);
+
+  const sendMessage = async () => {
+    if (message) {
+      await client.sendMessages(message.trim());
+      setMessage("");
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        `${client.getUserName()}: ${message}`,
+      ]);
     }
   };
 
   return (
-    <Flex direction="column" h="100vh">
-      <VStack spacing={4} p={6} width="100%" maxW="600px" margin="0 auto">
-        <Heading as="h2">{roomName}</Heading>
+    <Flex direction="column" h="100vh" justifyContent={"center"}>
+      <VStack
+        spacing={4}
+        p={6}
+        width="100%"
+        maxW="600px"
+        margin="0 auto"
+        flexGrow={1}
+      >
+        <Heading as="h2">{client.getRoomName()}</Heading>
         <Box
           width="100%"
           border="1px solid"
           borderColor="gray.200"
           borderRadius="md"
           p={4}
-          flexGrow={1}
           overflowY="auto"
         >
           {messages.map((message, index) => (
@@ -45,16 +70,29 @@ const ChatRoom: React.FC<Props> = ({ userName, roomName }) => {
           ))}
         </Box>
       </VStack>
-      <Box mt="auto" width="100%" maxW="600px" margin="0 auto" p={6}>
-        <Textarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type your message..."
-          mb={2}
-        />
-        <Button onClick={sendMessage} colorScheme="blue">
-          Send
-        </Button>
+      <Box
+        position="fixed"
+        bottom={0}
+        width="100%"
+        maxW="600px"
+        margin="auto"
+        justifyContent="center"
+        p={6}
+        bg="white"
+        zIndex={1}
+      >
+        <Flex justifyContent={"center"} alignItems={"center"}>
+          <Textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Type your message..."
+            flexGrow={1}
+            maxWidth={"80%"}
+          />
+          <Button onClick={sendMessage} colorScheme="blue" marginLeft={4}>
+            Send
+          </Button>
+        </Flex>
       </Box>
     </Flex>
   );

@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { Client } from "./Client";
 import {
   Button,
   Input,
@@ -7,46 +8,55 @@ import {
   Radio,
   RadioGroup,
   Stack,
+  Checkbox,
 } from "@chakra-ui/react";
 import ChatRoom from "./ChatRoom";
+import _ from "lodash";
 
 const App: React.FC = () => {
+  const [client, setClient] = useState(new Client());
+  const [messages, setMessages] = useState<string[]>([]);
   const [userName, setUserName] = useState("");
   const [roomName, setRoomName] = useState("");
+  const [isUserInRoom, setIsUserInRoom] = useState(false);
+  const [password, setPassword] = useState("");
+  const [roomAction, setRoomAction] = useState<"create" | "join">("create");
+  const [usePassword, setUsePassword] = useState(false); // New state for using password
   const [isUserNameSet, setIsUserNameSet] = useState(false);
-  const [isInRoom, setIsInRoom] = useState(false);
-  const [roomAction, setRoomAction] = useState<"create" | "join" | undefined>(
-    undefined
-  );
 
   const setUserNameAndProceed = () => {
-    if (userName.trim()) {
-      setIsUserNameSet(true);
-    }
+    setClient((client: Client) => {
+      let updatedClient = _.cloneDeep(client);
+      updatedClient.setName(userName);
+      return updatedClient;
+    });
+    setIsUserNameSet(true);
   };
 
-  const handleRoomAction = () => {
-    // TODO: Connect to server
+  const handleRoomAction = async () => {
     if (roomAction === "create") {
-      // Logic to create a room
+      await client.start(1, userName, roomName, password);
+      await client.start(2, userName, roomName, password);
+      setIsUserInRoom(true);
     } else if (roomAction === "join") {
-      setIsInRoom(true);
+      await client.start(2, userName, roomName, password);
+      setIsUserInRoom(true);
     }
   };
 
-  if (isInRoom) {
-    return <ChatRoom userName={userName} roomName={roomName} />;
+  if (isUserInRoom) {
+    return <ChatRoom client={client} />;
   }
 
   return (
     <VStack spacing={4} p={6}>
-      <Heading as="h1">Welcome {isUserNameSet ? userName : ""}</Heading>
+      <Heading as="h1">Welcome {userName ? userName : ""}</Heading>
       {!isUserNameSet ? (
         <>
           <Input
             placeholder="Enter User Name"
             value={userName}
-            onChange={(e) => setUserName(e.target.value)}
+            onChange={(e) => setUserName(e.target.value.trim())}
           />
           <Button onClick={setUserNameAndProceed}>Set Username</Button>
         </>
@@ -64,8 +74,25 @@ const App: React.FC = () => {
           <Input
             placeholder="Enter Room Name"
             value={roomName}
-            onChange={(e) => setRoomName(e.target.value)}
+            onChange={(e) => setRoomName(e.target.value.trim())}
           />
+          {roomAction === "create" && (
+            <>
+              <Checkbox
+                isChecked={usePassword}
+                onChange={(e) => setUsePassword(e.target.checked)}
+              >
+                Use Password
+              </Checkbox>
+              {usePassword && (
+                <Input
+                  placeholder="Enter Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value.trim())}
+                />
+              )}
+            </>
+          )}
           <Button onClick={handleRoomAction}>
             {roomAction === "create" ? "Create Room" : "Join Room"}
           </Button>

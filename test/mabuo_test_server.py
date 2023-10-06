@@ -2,14 +2,15 @@ import socket
 import json
 import struct
 import threading
+import secrets
 
 
 class Server:
     def __init__(self, tcp_port=8000, udp_port=9000):
         self.tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.tcp_socket.bind(('0.0.0.0', tcp_port))
-        self.udp_socket.bind(('0.0.0.0', udp_port))
+        self.tcp_socket.bind(('localhost', tcp_port))
+        self.udp_socket.bind(('localhost', udp_port))
         self.clients = {}
 
     def start(self):
@@ -26,6 +27,7 @@ class Server:
         room_name_size, operation, state, payload_size = struct.unpack(
             "!B B B 29s", header)
         room_name = conn.recv(room_name_size)
+        print(int.from_bytes(payload_size, 'big'))
         payload_data = conn.recv(int.from_bytes(payload_size, 'big'))
         print(
             f"Header: {room_name_size}, {operation}, {state}, {payload_size}")
@@ -37,14 +39,17 @@ class Server:
         username = payload["username"]
         ip = payload["ip"]
         port = payload["port"]
-        
+
+        print(username)
+        print(ip)
+        print(port)
 
         # クライアントへの応答
         response_payload = {"status": 202, "message": "Room exist"}
         response_header = struct.pack("!B B B 29s", room_name_size, operation, 1, len(
             json.dumps(response_payload).encode('utf-8')).to_bytes(29, 'big'))
-        conn.send(response_header +
-                  json.dumps(response_payload).encode('utf-8'))
+        conn.send(response_header)
+        conn.send(json.dumps(response_payload).encode('utf-8'))
 
         if operation == 1:  # Create room
             if room_name not in self.clients:
@@ -67,12 +72,12 @@ class Server:
                 self.send_response(conn, response)
                 return
 
-        token = f"{username}_token"
+        token = secrets.token_hex(125)
         self.clients[room_name].append((conn, token))
 
         response = {
             "status": 201,
-            "token": token
+            "token": token,
         }
         self.send_response(conn, response)
 
@@ -84,7 +89,10 @@ class Server:
         payload_data = json.dumps(response).encode('utf-8')
         header = struct.pack("!B B B 29s", 0, 0, 2, len(
             payload_data).to_bytes(29, 'big'))
-        conn.send(header + payload_data)
+        print(header)
+        print(len(header + payload_data))
+        conn.send(header)
+        conn.send(payload_data)
 
     def handle_udp_messages(self, room_name, token):
         print("handle_udp_messages")
@@ -92,10 +100,9 @@ class Server:
             message, addr = self.udp_socket.recvfrom(4096)
             room_name_size, token_size = struct.unpack("!B B", message[:2])
             room_name = message[2:2 + room_name_size].decode('utf-8')
-            print(room_name)
-            token = message[2 + room_name_size:2 +
-                            room_name_size + token_size].decode('utf-8')
-            print(token)
+            print("roomName" + room_name)
+            token = message[2 + room_name_size:2 + room_name_size + token_size].hex()
+            print(f"token: {token}")
             payload = json.loads(message[2 + room_name_size + token_size:].decode('utf-8'))
             print(payload["sender"] + ": " + payload["message"])
             self.udp_socket.sendto(message, addr)
