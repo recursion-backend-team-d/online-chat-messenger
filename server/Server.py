@@ -1,3 +1,4 @@
+from enum import IntEnum
 import json
 import socket
 import struct
@@ -17,12 +18,17 @@ STATUS_MESSAGE = {
     409: 'Requested room name or username already exists',
 }
 
-CREATE_ROOM = 1
-JOIN_ROOM = 2
-REQUEST_HEADER_SIZE = 32
-MESSAGE_SIZE = 4096
-MSG_HEADER_SIZE = 2
-TOKEN_SIZE = 125
+
+class Operation(IntEnum):
+    CREATE_ROOM = 1
+    JOIN_ROOM = 2
+
+
+class DataSize(IntEnum):
+    REQUEST_HEADER_SIZE = 32
+    MESSAGE_SIZE = 4096
+    MSG_HEADER_SIZE = 2
+    TOKEN_SIZE = 125
 
 
 class Server:
@@ -60,7 +66,7 @@ class Server:
         self.send_response(conn, operation, 1, 202)
 
         token = self.generate_token()
-        if operation == CREATE_ROOM:
+        if operation == Operation.CREATE_ROOM:
             if not self.find_room(room_name):
                 client = ChatClient(operation_payload['username'],
                                     (operation_payload['ip'], operation_payload['port'],), token, True)
@@ -73,7 +79,7 @@ class Server:
             else:
                 self.send_response(conn, operation, 2, 400)
 
-        if operation == JOIN_ROOM:
+        if operation == Operation.JOIN_ROOM:
             if self.find_room(room_name):
                 client = ChatClient(
                     operation_payload['username'],
@@ -96,7 +102,7 @@ class Server:
                 self.send_response(conn, operation, 3, 400)
 
     def receive_request(self, conn):
-        header = conn.recv(REQUEST_HEADER_SIZE)
+        header = conn.recv(DataSize.REQUEST_HEADER_SIZE)
         room_name_size, operation, state, operation_payload_size = struct.unpack('!B B B 29s', header)
         room_name = conn.recv(room_name_size)
         room_name = room_name.decode()
@@ -124,12 +130,14 @@ class Server:
     def receive(self):
         try:
             while True:
-                data, address = self.udp_socket.recvfrom(MESSAGE_SIZE)
-                room_name_size, token_size = struct.unpack('!B B', data[:MSG_HEADER_SIZE])
-                room_name = data[MSG_HEADER_SIZE:MSG_HEADER_SIZE + room_name_size].decode('utf-8')
-                token = data[MSG_HEADER_SIZE + room_name_size:MSG_HEADER_SIZE +
+                data, address = self.udp_socket.recvfrom(DataSize.MESSAGE_SIZE)
+                room_name_size, token_size = struct.unpack('!B B', data[:DataSize.MSG_HEADER_SIZE])
+                room_name = data[DataSize.MSG_HEADER_SIZE:DataSize.MSG_HEADER_SIZE +
+                                 room_name_size].decode('utf-8')
+                token = data[DataSize.MSG_HEADER_SIZE + room_name_size:DataSize.MSG_HEADER_SIZE +
                              room_name_size + token_size].decode('utf-8')
-                payload = json.loads(data[MSG_HEADER_SIZE + room_name_size + token_size:].decode('utf-8'))
+                payload = json.loads(data[DataSize.MSG_HEADER_SIZE +
+                                     room_name_size + token_size:].decode('utf-8'))
                 if not self.rooms[room_name].broadcast(address, token, payload):
                     header = struct.pack('!B B', 0, 0)
                     body = {
@@ -157,7 +165,7 @@ class Server:
         return True
 
     def generate_token(self):
-        return secrets.token_hex(TOKEN_SIZE)
+        return secrets.token_hex(DataSize.TOKEN_SIZE)
 
     def destroy_empty_room_periodically(self):
         while True:
