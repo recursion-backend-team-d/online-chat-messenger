@@ -7,6 +7,7 @@ import {
   Text,
   Textarea,
   Flex,
+  useToast,
 } from "@chakra-ui/react";
 import { Client } from "./Client";
 
@@ -19,17 +20,33 @@ const ChatRoom: React.FC<Props> = ({ client }) => {
   const [messages, setMessages] = useState<string[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const toast = useToast();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const notifyError = (message: string) => {
+    toast({
+      title: "System Notification",
+      description: message,
+      status: "error",
+      duration: 5000,
+      isClosable: true,
+      position: "top-right",
+    });
+  };
+
   useEffect(() => {
     const messageCallback = (sender: string, messageContent: string) => {
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        `${sender}: ${messageContent}`,
-      ]);
+      if (sender === "system") {
+        notifyError(messageContent);
+      } else {
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          `${sender}: ${messageContent}`,
+        ]);
+      }
     };
 
     client.receiveMessages(messageCallback);
@@ -70,7 +87,7 @@ const ChatRoom: React.FC<Props> = ({ client }) => {
           borderRadius="md"
           p={4}
           overflowY="auto"
-          maxHeight="70vh"
+          maxHeight="60vh"
         >
           {messages.map((message, index) => (
             <Text key={index} mb={2}>
@@ -81,7 +98,7 @@ const ChatRoom: React.FC<Props> = ({ client }) => {
         </Box>
       </VStack>
       <Box
-        position="fixed"
+        // position="fixed"
         bottom={0}
         width="100%"
         maxW="600px"
