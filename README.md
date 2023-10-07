@@ -57,7 +57,7 @@ class Server {
   +wait_for_client_conn(): None
   +establish_chat(conn): None
   +accept_request(conn)
-  +send_response(conn, operation, state, payload): None
+  +send_response(conn, operation, state, status, token): None
   +find_room(room_name): ChatRoom
   +create_room(room_name, client): bool
   +assign_room(room_name, client): bool
