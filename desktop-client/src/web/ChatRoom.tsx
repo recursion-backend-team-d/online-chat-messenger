@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
+import { IconButton } from "@chakra-ui/react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPaperPlane } from "@fortawesome/free-solid-svg-icons";
 import {
   Box,
   Button,
@@ -10,7 +13,7 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import { Client } from "./Client";
-import { useParams, useNavigate } from "react-router-dom"; // Corrected this line
+import { useParams, useNavigate } from "react-router-dom";
 import MembersModal from "./MembersModal";
 
 const ChatRoom: React.FC = () => {
@@ -22,7 +25,7 @@ const ChatRoom: React.FC = () => {
   const { roomName } = useParams<{ roomName: string }>();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const toast = useToast();
-  const navigate = useNavigate(); // Replaced useHistory with useNavigate
+  const navigate = useNavigate();
 
   const handleOpenMembersModal = () => {
     setIsMembersModalOpen(true);
@@ -58,7 +61,7 @@ const ChatRoom: React.FC = () => {
         isClosable: true,
         position: "top-right",
       });
-      navigate("/"); // Updated this line
+      navigate("/");
     } catch (error) {
       notifyError("Error leaving the room.");
     }
@@ -86,15 +89,16 @@ const ChatRoom: React.FC = () => {
     ) => {
       notifyError(`${sender}: operation:${operation} username:${username}`);
     };
-    client!.receiveMessages(messageCallback, systemCallback);
+
+    client.receiveMessages(messageCallback, systemCallback);
     const getAvailableRoomCallback = (roomsData: any) => {
       const roomMembers = roomsData[roomName!].members;
       setMembers(roomMembers);
     };
-    client!.getAvailableRoom(getAvailableRoomCallback);
+    client.getAvailableRoom(getAvailableRoomCallback);
 
     return () => {
-      client!.removeMessageListener(messageCallback, systemCallback);
+      client.removeMessageListener(messageCallback, systemCallback);
     };
   }, [client]);
 
@@ -102,12 +106,16 @@ const ChatRoom: React.FC = () => {
 
   const sendMessage = async () => {
     if (message) {
-      await client!.sendMessages(message.trim());
-      setMessage("");
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        `${client!.getUserName()}: ${message}`,
-      ]);
+      try {
+        await client!.sendMessages(message.trim());
+        setMessage("");
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          `${client!.getUserName()}: ${message}`,
+        ]);
+      } catch (error) {
+        console.log(error);
+      }
     }
   };
 
@@ -145,17 +153,38 @@ const ChatRoom: React.FC = () => {
         </Button>
         <Box
           width="100%"
-          border="1px solid"
-          borderColor="gray.200"
-          borderRadius="md"
+          bgGradient="linear(to-b, gray.50, gray.100)"
+          boxShadow="base"
+          borderRadius="lg"
           p={4}
           overflowY="auto"
           maxHeight="60vh"
+          maxWidth={"80vw"}
+          height="100%"
+          resize={"none"}
         >
           {messages.map((message, index) => (
-            <Text key={index} mb={2}>
-              {message}
-            </Text>
+            <Box
+              key={index}
+              mb={2}
+              p={2}
+              borderRadius="md"
+              bg={
+                message.startsWith(client!.getUserName())
+                  ? "gray.100"
+                  : "green.300"
+              }
+              alignSelf={
+                message.startsWith(client!.getUserName())
+                  ? "flex-start"
+                  : "flex-end"
+              }
+            >
+              <Text fontSize="sm" color="gray.600">
+                {message.split(":")[0]}
+              </Text>
+              <Text fontWeight="medium">{message.split(":")[1]}</Text>
+            </Box>
           ))}
           <div ref={messagesEndRef} />
         </Box>
@@ -178,9 +207,13 @@ const ChatRoom: React.FC = () => {
             flexGrow={1}
             maxWidth={"80%"}
           />
-          <Button onClick={sendMessage} colorScheme="blue" marginLeft={4}>
-            Send
-          </Button>
+          <IconButton
+            onClick={sendMessage}
+            colorScheme="blue"
+            marginLeft={4}
+            icon={<FontAwesomeIcon icon={faPaperPlane} />}
+            aria-label="Send"
+          />
         </Flex>
       </Box>
       <MembersModal

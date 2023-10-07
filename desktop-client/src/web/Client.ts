@@ -3,7 +3,11 @@ import * as net from "net";
 import { Buffer } from "buffer";
 
 type MessageCallback = (sender: string, message: string) => void;
-type SystemCallback = (sender: string, operation: number, username: string) => void;
+type SystemCallback = (
+  sender: string,
+  operation: number,
+  username: string
+) => void;
 
 export class Client {
   private static readonly ROOM_NAME_SIZE = 255;
@@ -47,7 +51,7 @@ export class Client {
   }
 
   // usernameをセットするボタンを押した瞬間にこのメソッドを使用することを想定
-  async getAvailableRoom(callback: (rooms: any) => void){
+  async getAvailableRoom(callback: (rooms: any) => void) {
     // サーバーにコネクト
     await this.connectServer();
     // サーバーから入室可能なルームの情報のheaderを受け取る
@@ -63,10 +67,8 @@ export class Client {
     console.log("get responsePayload");
     console.log(responsePayloadDate);
     // 受け取った情報をデコードしてJSON形式からJSのオブジェクトへ変換
-    const responsePayload = JSON.parse(
-      responsePayloadDate.toString("utf-8")
-    );
-    callback(responsePayload["rooms"])
+    const responsePayload = JSON.parse(responsePayloadDate.toString("utf-8"));
+    callback(responsePayload["rooms"]);
   }
 
   async start(
@@ -229,17 +231,16 @@ export class Client {
     const payloadLengthData = data.subarray(3, 32);
     let payloadLength = 0n; // BigIntの初期値
     for (let i = 0; i < payloadLengthData.length; i++) {
-        payloadLength = payloadLength * 256n + BigInt(payloadLengthData[i]);
+      payloadLength = payloadLength * 256n + BigInt(payloadLengthData[i]);
     }
 
     return {
-        roomNameSize,
-        operation,
-        state,
-        payloadLength: Number(payloadLength), // 必要に応じてBigIntのまま使うこともできます
+      roomNameSize,
+      operation,
+      state,
+      payloadLength: Number(payloadLength), // 必要に応じてBigIntのまま使うこともできます
     };
   }
-
 
   private async getResponseData(Length: number): Promise<Buffer> {
     let responsePayloadData: Buffer;
@@ -341,7 +342,10 @@ export class Client {
   }
 
   // UDP通信のreceive
-  async receiveMessages(messageCallback: MessageCallback, systemCallback: SystemCallback): Promise<void> {
+  async receiveMessages(
+    messageCallback: MessageCallback,
+    systemCallback: SystemCallback
+  ): Promise<void> {
     // 既存の 'message' イベントリスナを削除
     this.udpSocket.removeAllListeners("message");
     this.udpSocket.on("message", (msg: Buffer, rinfo: any) => {
@@ -355,10 +359,13 @@ export class Client {
       const receivePayload = JSON.parse(receivePayloadString);
       console.log(`${receivePayload["sender"]}: ${receivePayload["message"]}`);
       // コールバック関数を呼び出して、senderがsystemかそれ以外でコールバック関数変えています。
-      if (receivePayload["sender"] === "system"){
-        systemCallback(receivePayload["sender"], receivePayload["operation"], receivePayload["username"])
-      }
-      else {
+      if (receivePayload["sender"] === "system") {
+        systemCallback(
+          receivePayload["sender"],
+          receivePayload["operation"],
+          receivePayload["username"]
+        );
+      } else {
         messageCallback(receivePayload["sender"], receivePayload["message"]);
       }
     });
@@ -373,8 +380,12 @@ export class Client {
     });
   }
 
-  public removeMessageListener(callback: MessageCallback): void {
-    this.udpSocket.removeListener("message", callback);
+  public removeMessageListener(
+    messageCallback: MessageCallback,
+    systemCallback: SystemCallback
+  ): void {
+    this.udpSocket.removeListener("message", messageCallback);
+    this.udpSocket.removeListener("message", systemCallback);
   }
 
   // タイムアウトを処理するためのユーティリティ関数
@@ -399,10 +410,10 @@ export class Client {
     header.writeUInt8(this.tokenSize, 1);
 
     const payload = {
-      sender: 'system',
+      sender: "system",
       operation: 2,
-      username: this.username
-  };
+      username: this.username,
+    };
 
     const body = Buffer.concat([
       Buffer.from(this.roomName, "utf-8"),
@@ -413,21 +424,26 @@ export class Client {
     const exitMessage = Buffer.concat([header, body]);
     return exitMessage;
   }
-  
+
   leaveRoomUsingUDP(): void {
     // 退出処理のリクエストをサーバーに送信する
     const exitMessage = this.createExitMessage();
-    this.udpSocket.send(exitMessage, this.udpServerAddress[1], this.udpServerAddress[0], (error) => {
+    this.udpSocket.send(
+      exitMessage,
+      this.udpServerAddress[1],
+      this.udpServerAddress[0],
+      (error) => {
         if (error) {
-            console.error('Failed to send exit message:', error);
-            return;
+          console.error("Failed to send exit message:", error);
+          return;
         }
-        console.log('Exit message sent.');
+        console.log("Exit message sent.");
         // 必要に応じてUDPソケットをクローズ
         // this.udpSocket.close();
 
         // ステータスの更新や内部変数のクリア
         // this.resetInternalState();
-    });
+      }
+    );
   }
 }
