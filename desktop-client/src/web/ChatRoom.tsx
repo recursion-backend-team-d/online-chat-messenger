@@ -10,17 +10,27 @@ import {
   useToast,
 } from "@chakra-ui/react";
 import { Client } from "./Client";
+import { useParams, useNavigate } from "react-router-dom"; // Corrected this line
+import MembersModal from "./MembersModal";
 
-interface Props {
-  client: Client;
-}
-
-const ChatRoom: React.FC<Props> = ({ client }) => {
+const ChatRoom: React.FC = () => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
-
+  const [client, setClient] = useState<Client | undefined>(undefined);
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
+  const [members, setMembers] = useState<string[]>([]);
+  const { roomName } = useParams<{ roomName: string }>();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const toast = useToast();
+  const navigate = useNavigate(); // Replaced useHistory with useNavigate
+
+  const handleOpenMembersModal = () => {
+    setIsMembersModalOpen(true);
+  };
+
+  const handleCloseMembersModal = () => {
+    setIsMembersModalOpen(false);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -30,29 +40,61 @@ const ChatRoom: React.FC<Props> = ({ client }) => {
     toast({
       title: "System Notification",
       description: message,
-      status: "error",
+      status: "info",
       duration: 5000,
       isClosable: true,
       position: "top-right",
     });
   };
 
+  const handleLeaveRoom = async () => {
+    try {
+      client!.leaveRoomUsingUDP();
+      toast({
+        title: "System Notification",
+        description: "You have left the room.",
+        status: "success",
+        duration: 5000,
+        isClosable: true,
+        position: "top-right",
+      });
+      navigate("/"); // Updated this line
+    } catch (error) {
+      notifyError("Error leaving the room.");
+    }
+  };
+
   useEffect(() => {
+    if (!client) {
+      const anonymousClient = new Client();
+      anonymousClient.setName("Anonymous");
+      setClient(anonymousClient);
+      return;
+    }
+
     const messageCallback = (sender: string, messageContent: string) => {
-      if (sender === "system") {
-        notifyError(messageContent);
-      } else {
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          `${sender}: ${messageContent}`,
-        ]);
-      }
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        `${sender}: ${messageContent}`,
+      ]);
     };
 
-    client.receiveMessages(messageCallback);
+    const systemCallback = (
+      sender: string,
+      operation: number,
+      username: string
+    ) => {
+      notifyError(`${sender}: operation:${operation} username:${username}`);
+    };
+    client!.receiveMessages(messageCallback, systemCallback);
+    const getAvailableRoomCallback = (roomsData: any) => {
+      const roomMembers = roomsData[roomName!].members;
+      setMembers(roomMembers);
+    };
+    client!.getAvailableRoom(getAvailableRoomCallback);
 
     return () => {
-      client.removeMessageListener(messageCallback);
+      client!.removeMessageListener(messageCallback, systemCallback);
     };
   }, [client]);
 
@@ -60,11 +102,11 @@ const ChatRoom: React.FC<Props> = ({ client }) => {
 
   const sendMessage = async () => {
     if (message) {
-      await client.sendMessages(message.trim());
+      await client!.sendMessages(message.trim());
       setMessage("");
       setMessages((prevMessages) => [
         ...prevMessages,
-        `${client.getUserName()}: ${message}`,
+        `${client!.getUserName()}: ${message}`,
       ]);
     }
   };
@@ -78,8 +120,29 @@ const ChatRoom: React.FC<Props> = ({ client }) => {
         maxW="600px"
         margin="0 auto"
         flexGrow={1}
+        position="relative"
       >
-        <Heading as="h2">{client.getRoomName()}</Heading>
+        <Heading as="h2">{roomName}</Heading>
+        <Button
+          position="absolute"
+          top={4}
+          right={4}
+          size="sm"
+          colorScheme="red"
+          onClick={handleLeaveRoom}
+        >
+          Leave Room
+        </Button>
+        <Button
+          position="absolute"
+          top={4}
+          left={4}
+          size="sm"
+          colorScheme="blue"
+          onClick={handleOpenMembersModal}
+        >
+          View Members
+        </Button>
         <Box
           width="100%"
           border="1px solid"
@@ -98,7 +161,6 @@ const ChatRoom: React.FC<Props> = ({ client }) => {
         </Box>
       </VStack>
       <Box
-        // position="fixed"
         bottom={0}
         width="100%"
         maxW="600px"
@@ -121,6 +183,11 @@ const ChatRoom: React.FC<Props> = ({ client }) => {
           </Button>
         </Flex>
       </Box>
+      <MembersModal
+        isOpen={isMembersModalOpen}
+        onClose={handleCloseMembersModal}
+        members={members}
+      />
     </Flex>
   );
 };
