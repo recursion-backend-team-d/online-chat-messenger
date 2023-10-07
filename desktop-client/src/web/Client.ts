@@ -3,6 +3,7 @@ import * as net from "net";
 import { Buffer } from "buffer";
 
 type MessageCallback = (sender: string, message: string) => void;
+type SystemCallback = (sender: string, operation: number, username: string) => void;
 
 export class Client {
   private static readonly ROOM_NAME_SIZE = 255;
@@ -45,13 +46,35 @@ export class Client {
     console.log("Success constructor");
   }
 
+  // usernameをセットするボタンを押した瞬間にこのメソッドを使用することを想定
+  async getAvailableRoom(callback: (rooms: any) => void){
+    // サーバーにコネクト
+    await this.connectServer();
+    // サーバーから入室可能なルームの情報のheaderを受け取る
+    const headerBuffer = await this.getResponseData(32);
+    // headerの解析
+    const header = this.readHeader(headerBuffer);
+    console.log(header);
+    console.log("receiving responsePayload");
+    // サーバーから入室可能なルームの情報を受け取る
+    const responsePayloadDate = await this.getResponseData(
+      header.payloadLength
+    );
+    console.log("get responsePayload");
+    console.log(responsePayloadDate);
+    // 受け取った情報をデコードしてJSON形式からJSのオブジェクトへ変換
+    const responsePayload = JSON.parse(
+      responsePayloadDate.toString("utf-8")
+    );
+    callback(responsePayload["rooms"])
+  }
+
   async start(
     operation: number,
     name: string,
     roomname: string,
     password: string = ""
   ) {
-    await this.connectServer();
     await this.joinRoom(operation, name, roomname, password);
   }
 
@@ -127,28 +150,28 @@ export class Client {
           this.timeout(Client.TIMEOUT_MS),
         ]);
 
-        const readHeader = (data: Buffer) => {
-          const roomNameSize = data.readUInt8(0);
-          const operation = data.readUInt8(1);
-          const state = data.readUInt8(2);
+        // const readHeader = (data: Buffer) => {
+        //   const roomNameSize = data.readUInt8(0);
+        //   const operation = data.readUInt8(1);
+        //   const state = data.readUInt8(2);
 
-          // 29バイトの長さを持つpayload_lengthをBigIntとして読み取る
-          const payloadLengthData = data.subarray(3, 32);
-          let payloadLength = 0n; // BigIntの初期値
-          for (let i = 0; i < payloadLengthData.length; i++) {
-            payloadLength = payloadLength * 256n + BigInt(payloadLengthData[i]);
-          }
+        //   // 29バイトの長さを持つpayload_lengthをBigIntとして読み取る
+        //   const payloadLengthData = data.subarray(3, 32);
+        //   let payloadLength = 0n; // BigIntの初期値
+        //   for (let i = 0; i < payloadLengthData.length; i++) {
+        //     payloadLength = payloadLength * 256n + BigInt(payloadLengthData[i]);
+        //   }
 
-          return {
-            roomNameSize,
-            operation,
-            state,
-            payloadLength: Number(payloadLength), // 必要に応じてBigIntのまま使うこともできます
-          };
-        };
+        //   return {
+        //     roomNameSize,
+        //     operation,
+        //     state,
+        //     payloadLength: Number(payloadLength), // 必要に応じてBigIntのまま使うこともできます
+        //   };
+        // };
 
         // headerBufferを解析
-        const header = readHeader(headerBuffer);
+        const header = this.readHeader(headerBuffer);
 
         console.log(header);
 
@@ -191,64 +214,32 @@ export class Client {
         }
         console.log("socket closing...");
         this.tcpSocket.end();
+        this.residualData = null;
         return; // またはエラーをUIに伝えるための処理
       }
-
-      // try {
-      //     const headerBuffer = await Promise.race([
-      //         this.getResponseData(32),
-      //         this.timeout(Client.TIMEOUT_MS)
-      //     ]);
-
-      // const readHeader = (data: Buffer) => {
-      //     const roomNameSize = data.readUInt8(0);
-      //     const operation = data.readUInt8(1);
-      //     const state = data.readUInt8(2);
-
-      //     // 29バイトの長さを持つpayload_lengthをBigIntとして読み取る
-      //     const payloadLengthData = data.subarray(3, 32);
-      //     let payloadLength = 0n; // BigIntの初期値
-      //     for (let i = 0; i < payloadLengthData.length; i++) {
-      //         payloadLength = (payloadLength * 256n) + BigInt(payloadLengthData[i]);
-      //     }
-
-      //     return {
-      //         roomNameSize,
-      //         operation,
-      //         state,
-      //         payloadLength: Number(payloadLength) // 必要に応じてBigIntのまま使うこともできます
-      //     };
-      // }
-
-      // // headerBufferを解析
-      // const header = readHeader(headerBuffer);
-
-      // console.log(header);
-
-      // console.log("receiving responsePayload")
-
-      // const responsePayloadDate =  await this.getResponseData(header.payloadLength);
-
-      // console.log("get responsePayload")
-      // console.log(responsePayloadDate);
-      // const responsePayload = JSON.parse(responsePayloadDate.toString('utf-8'));
-
-      // if (header.state === 1) {
-      //     console.log("Received a request response from the server.");
-      //     console.log(responsePayload.message);
-      //     continue;
-      // } else if (header.state === 2) {
-      //     console.log(responsePayload);
-      //     this.token = responsePayload.token;
-      //     console.log(this.token);
-      //     this.tokenSize = Buffer.from(this.token, 'hex').length;
-      //     console.log(this.tokenSize);
-      //     console.log("Connection successfully established.");
-      //     this.tcpSocket.end();
-      //     break;
-      // }
     }
   }
+
+  readHeader(data: Buffer) {
+    const roomNameSize = data.readUInt8(0);
+    const operation = data.readUInt8(1);
+    const state = data.readUInt8(2);
+
+    // 29バイトの長さを持つpayload_lengthをBigIntとして読み取る
+    const payloadLengthData = data.subarray(3, 32);
+    let payloadLength = 0n; // BigIntの初期値
+    for (let i = 0; i < payloadLengthData.length; i++) {
+        payloadLength = payloadLength * 256n + BigInt(payloadLengthData[i]);
+    }
+
+    return {
+        roomNameSize,
+        operation,
+        state,
+        payloadLength: Number(payloadLength), // 必要に応じてBigIntのまま使うこともできます
+    };
+  }
+
 
   private async getResponseData(Length: number): Promise<Buffer> {
     let responsePayloadData: Buffer;
@@ -350,7 +341,7 @@ export class Client {
   }
 
   // UDP通信のreceive
-  async receiveMessages(callback: MessageCallback): Promise<void> {
+  async receiveMessages(messageCallback: MessageCallback, systemCallback: SystemCallback): Promise<void> {
     // 既存の 'message' イベントリスナを削除
     this.udpSocket.removeAllListeners("message");
     this.udpSocket.on("message", (msg: Buffer, rinfo: any) => {
@@ -363,8 +354,13 @@ export class Client {
         receivePayloadBuffer.toString("utf-8");
       const receivePayload = JSON.parse(receivePayloadString);
       console.log(`${receivePayload["sender"]}: ${receivePayload["message"]}`);
-      // コールバック関数を呼び出して、メッセージを通知
-      callback(receivePayload["sender"], receivePayload["message"]);
+      // コールバック関数を呼び出して、senderがsystemかそれ以外でコールバック関数変えています。
+      if (receivePayload["sender"] === "system"){
+        systemCallback(receivePayload["sender"], receivePayload["operation"], receivePayload["username"])
+      }
+      else {
+        messageCallback(receivePayload["sender"], receivePayload["message"]);
+      }
     });
 
     this.udpSocket.on("error", (err) => {
@@ -394,5 +390,44 @@ export class Client {
 
   public getRoomName(): string {
     return this.roomName;
+  }
+
+  createExitMessage(): Buffer {
+    // 退出メッセージの作成
+    const header = Buffer.alloc(2); // 2バイトのBufferを作成
+    header.writeUInt8(this.roomNameSize, 0);
+    header.writeUInt8(this.tokenSize, 1);
+
+    const payload = {
+      sender: 'system',
+      operation: 2,
+      username: this.username
+  };
+
+    const body = Buffer.concat([
+      Buffer.from(this.roomName, "utf-8"),
+      Buffer.from(this.token, "hex"),
+      Buffer.from(JSON.stringify(payload), "utf-8"),
+    ]);
+
+    const exitMessage = Buffer.concat([header, body]);
+    return exitMessage;
+  }
+  
+  leaveRoomUsingUDP(): void {
+    // 退出処理のリクエストをサーバーに送信する
+    const exitMessage = this.createExitMessage();
+    this.udpSocket.send(exitMessage, this.udpServerAddress[1], this.udpServerAddress[0], (error) => {
+        if (error) {
+            console.error('Failed to send exit message:', error);
+            return;
+        }
+        console.log('Exit message sent.');
+        // 必要に応じてUDPソケットをクローズ
+        // this.udpSocket.close();
+
+        // ステータスの更新や内部変数のクリア
+        // this.resetInternalState();
+    });
   }
 }
