@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Box,
   Button,
@@ -18,6 +18,12 @@ const ChatRoom: React.FC<Props> = ({ client }) => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
 
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
   useEffect(() => {
     const messageCallback = (sender: string, messageContent: string) => {
       setMessages((prevMessages) => [
@@ -33,6 +39,8 @@ const ChatRoom: React.FC<Props> = ({ client }) => {
     };
   }, [client]);
 
+  useEffect(scrollToBottom, [messages]);
+
   const sendMessage = async () => {
     if (message) {
       await client.sendMessages(message.trim());
@@ -45,7 +53,7 @@ const ChatRoom: React.FC<Props> = ({ client }) => {
   };
 
   return (
-    <Flex direction="column" h="100vh" justifyContent={"center"}>
+    <Flex direction="column" h="100vh">
       <VStack
         spacing={4}
         p={6}
@@ -62,12 +70,14 @@ const ChatRoom: React.FC<Props> = ({ client }) => {
           borderRadius="md"
           p={4}
           overflowY="auto"
+          maxHeight="70vh"
         >
           {messages.map((message, index) => (
             <Text key={index} mb={2}>
               {message}
             </Text>
           ))}
+          <div ref={messagesEndRef} />
         </Box>
       </VStack>
       <Box
