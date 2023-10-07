@@ -3,6 +3,7 @@ import * as net from "net";
 import { Buffer } from "buffer";
 
 type MessageCallback = (sender: string, message: string) => void;
+type SystemCallback = (sender: string, operation: number, username: string) => void;
 
 export class Client {
   private static readonly ROOM_NAME_SIZE = 255;
@@ -193,60 +194,6 @@ export class Client {
         this.tcpSocket.end();
         return; // またはエラーをUIに伝えるための処理
       }
-
-      // try {
-      //     const headerBuffer = await Promise.race([
-      //         this.getResponseData(32),
-      //         this.timeout(Client.TIMEOUT_MS)
-      //     ]);
-
-      // const readHeader = (data: Buffer) => {
-      //     const roomNameSize = data.readUInt8(0);
-      //     const operation = data.readUInt8(1);
-      //     const state = data.readUInt8(2);
-
-      //     // 29バイトの長さを持つpayload_lengthをBigIntとして読み取る
-      //     const payloadLengthData = data.subarray(3, 32);
-      //     let payloadLength = 0n; // BigIntの初期値
-      //     for (let i = 0; i < payloadLengthData.length; i++) {
-      //         payloadLength = (payloadLength * 256n) + BigInt(payloadLengthData[i]);
-      //     }
-
-      //     return {
-      //         roomNameSize,
-      //         operation,
-      //         state,
-      //         payloadLength: Number(payloadLength) // 必要に応じてBigIntのまま使うこともできます
-      //     };
-      // }
-
-      // // headerBufferを解析
-      // const header = readHeader(headerBuffer);
-
-      // console.log(header);
-
-      // console.log("receiving responsePayload")
-
-      // const responsePayloadDate =  await this.getResponseData(header.payloadLength);
-
-      // console.log("get responsePayload")
-      // console.log(responsePayloadDate);
-      // const responsePayload = JSON.parse(responsePayloadDate.toString('utf-8'));
-
-      // if (header.state === 1) {
-      //     console.log("Received a request response from the server.");
-      //     console.log(responsePayload.message);
-      //     continue;
-      // } else if (header.state === 2) {
-      //     console.log(responsePayload);
-      //     this.token = responsePayload.token;
-      //     console.log(this.token);
-      //     this.tokenSize = Buffer.from(this.token, 'hex').length;
-      //     console.log(this.tokenSize);
-      //     console.log("Connection successfully established.");
-      //     this.tcpSocket.end();
-      //     break;
-      // }
     }
   }
 
@@ -350,7 +297,7 @@ export class Client {
   }
 
   // UDP通信のreceive
-  async receiveMessages(callback: MessageCallback): Promise<void> {
+  async receiveMessages(messageCallback: MessageCallback, systemCallback: SystemCallback): Promise<void> {
     // 既存の 'message' イベントリスナを削除
     this.udpSocket.removeAllListeners("message");
     this.udpSocket.on("message", (msg: Buffer, rinfo: any) => {
@@ -363,8 +310,13 @@ export class Client {
         receivePayloadBuffer.toString("utf-8");
       const receivePayload = JSON.parse(receivePayloadString);
       console.log(`${receivePayload["sender"]}: ${receivePayload["message"]}`);
-      // コールバック関数を呼び出して、メッセージを通知
-      callback(receivePayload["sender"], receivePayload["message"]);
+      // コールバック関数を呼び出して、senderがsystemかそれ以外でコールバック関数変えています。
+      if (receivePayload["sender"] === "system"){
+        systemCallback(receivePayload["sender"], receivePayload["operation"], receivePayload["username"])
+      }
+      else {
+        messageCallback(receivePayload["sender"], receivePayload["message"]);
+      }
     });
 
     this.udpSocket.on("error", (err) => {
