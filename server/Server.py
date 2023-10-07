@@ -1,3 +1,4 @@
+from enum import IntEnum
 import json
 import socket
 import struct
@@ -8,13 +9,29 @@ from ChatRoom import ChatRoom
 from ChatClient import ChatClient
 
 
-class Server:
-    HEADER_SIZE = 32
-    BODY_SIZE = 4096
+STATUS_MESSAGE = {
+    200: 'Successfully joined a chat room',
+    201: 'Successfully create a chat room',
+    202: 'Server accpeted your request',
+    401: 'Token or room password is invalid',
+    404: 'Requested chat room does not exist',
+    409: 'Requested room name or username already exists',
+}
+
+
+class Operation(IntEnum):
+    CREATE_ROOM = 1
+    JOIN_ROOM = 2
+
+
+class DataSize(IntEnum):
+    REQUEST_HEADER_SIZE = 32
+    MESSAGE_SIZE = 4096
     MSG_HEADER_SIZE = 2
-    MSG_BODY_SIZE = 2
     TOKEN_SIZE = 125
 
+
+class Server:
     def __init__(self, tcp_address, udp_address):
         self.tcp_address = tcp_address
         self.udp_address = udp_address
@@ -37,118 +54,56 @@ class Server:
         while True:
             try:
                 conn, _ = self.tcp_socket.accept()
-                threading.Thread(target=self.establish_chat,
-                                 args=(conn,)).start()
+                threading.Thread(target=self.establish_chat, args=(conn,)).start()
             except Exception as e:
                 print(f'wait_for_client_conn: {e}')
                 print('socket closing....')
                 self.tcp_socket.close()
 
     def establish_chat(self, conn):
-        room_name, operation, state, operation_payload = self.receive_request(
-            conn)
+        room_name, operation, state, operation_payload = self.receive_request(conn)
         print(room_name, operation, state, operation_payload)
-        self.send_response(
-            conn,
-            operation,
-            1,
-            {"status": 202, "message": "Server ackowledged your request."})
+        self.send_response(conn, operation, 1, 202)
 
         token = self.generate_token()
-        # 新しいルームを作る
-        if operation == 1:
-            # Success
+        if operation == Operation.CREATE_ROOM:
             if not self.find_room(room_name):
-                client = ChatClient(
-                    operation_payload['username'],
-                    (operation_payload["ip"], operation_payload["port"],),
-                    token, True)
+                client = ChatClient(operation_payload['username'],
+                                    (operation_payload['ip'], operation_payload['port'],), token, True)
                 # パスワードがpayloadにあれば、ルームにそれを付与する
-                if "password" in operation_payload:
-                    self.create_room(room_name, client, operation_payload["password"])
+                if 'password' in operation_payload:
+                    self.create_room(room_name, client, operation_payload['password'])
                 else:
                     self.create_room(room_name, client)
-                self.send_response(
-                    conn,
-                    operation,
-                    2,
-                    {
-                        "status": 201,
-                        "message": "Server successfully created a chat room.",
-                        "token": token
-                    })
-            # Failure
+                self.send_response(conn, operation, 2, 201, token)
             else:
-                self.send_response(
-                    conn,
-                    operation,
-                    2,
-                    {
-                        "status": 400,
-                        "message": "Requested chat room already exists."
-                    })
+                self.send_response(conn, operation, 2, 400)
 
-        # 既存のルームに入る
-        if operation == 2:
-            # Success
+        if operation == Operation.JOIN_ROOM:
             if self.find_room(room_name):
                 client = ChatClient(
                     operation_payload['username'],
-                    (operation_payload["ip"], operation_payload["port"],),
+                    (operation_payload['ip'], operation_payload['port'],),
                     token, False)
 
                 room_to_join = self.find_room(room_name)
-                if room_to_join.is_password_required and "password" not in operation_payload:
-                    self.send_response(conn,
-                                       operation,
-                                       2,
-                                       {
-                                           "status": 400,
-                                           "message": "Room password is required",
-                                       })
+                if room_to_join.is_password_required and 'password' not in operation_payload:
+                    self.send_response(conn, operation, 2, 400)
                     return
-                if room_to_join.is_password_required and \
-                        room_to_join.password != operation_payload["password"]:
-                    self.send_response(conn,
-                                       operation,
-                                       2,
-                                       {
-                                           "status": 400,
-                                           "message": "Wrong room password",
-                                       })
+                if room_to_join.is_password_required \
+                        and room_to_join.password != operation_payload['password']:
+                    self.send_response(conn, operation, 2, 400)
                     return
                 if self.assign_room(room_name, client):
-                    self.send_response(conn,
-                                       operation,
-                                       2,
-                                       {
-                                           "status": 200,
-                                           "message": "Server successfully assigned you to a chat room.",
-                                           "token": token
-                                       })
+                    self.send_response(conn, operation, 2, 200, token)
                 else:
-                    self.send_response(conn,
-                                       operation,
-                                       2,
-                                       {
-                                           "status": 400,
-                                           "message": "Requested username is already taken."
-                                       })
-            # Failure
+                    self.send_response(conn, operation, 2, 400)
             else:
-                self.send_response(
-                    conn,
-                    operation,
-                    3,
-                    {
-                        "status": 400,
-                        "message": "Requested chat room does not exist."
-                    })
+                self.send_response(conn, operation, 3, 400)
 
     def receive_request(self, conn):
-        header = conn.recv(Server.HEADER_SIZE)
-        room_name_size, operation, state, operation_payload_size = \
-            struct.unpack('!B B B 29s', header)
+        header = conn.recv(DataSize.REQUEST_HEADER_SIZE)
+        room_name_size, operation, state, operation_payload_size = struct.unpack('!B B B 29s', header)
         room_name = conn.recv(room_name_size)
         room_name = room_name.decode()
         operation_payload = conn.recv(
@@ -156,11 +111,16 @@ class Server:
         operation_payload = json.loads(operation_payload)
         return room_name, operation, state, operation_payload
 
-    def send_response(self, conn, operation, state, payload):
+    def send_response(self, conn, operation, state, status, token=''):
         try:
+            payload = {
+                'status': status,
+                'message': STATUS_MESSAGE[status],
+            }
+            if token:
+                payload['token'] = token
             payload_data = json.dumps(payload).encode('utf-8')
-            header = struct.pack('!B B B 29s', 0, operation, state, len(
-                payload_data).to_bytes(29, 'big'))
+            header = struct.pack('!B B B 29s', 0, operation, state, len(payload_data).to_bytes(29, 'big'))
             conn.send(header + payload_data)
         except Exception as e:
             print(f'send_response: {e}')
@@ -170,25 +130,22 @@ class Server:
     def receive(self):
         try:
             while True:
-                data, address = self.udp_socket.recvfrom(Server.BODY_SIZE)
-                room_name_size, token_size = struct.unpack(
-                    '!B B', data[:Server.MSG_HEADER_SIZE])
-                room_name = data[Server.MSG_HEADER_SIZE:Server.MSG_HEADER_SIZE +
+                data, address = self.udp_socket.recvfrom(DataSize.MESSAGE_SIZE)
+                room_name_size, token_size = struct.unpack('!B B', data[:DataSize.MSG_HEADER_SIZE])
+                room_name = data[DataSize.MSG_HEADER_SIZE:DataSize.MSG_HEADER_SIZE +
                                  room_name_size].decode('utf-8')
-                token = data[Server.MSG_HEADER_SIZE + room_name_size:Server.MSG_HEADER_SIZE +
+                token = data[DataSize.MSG_HEADER_SIZE + room_name_size:DataSize.MSG_HEADER_SIZE +
                              room_name_size + token_size].decode('utf-8')
-                payload = json.loads(
-                    data[Server.MSG_HEADER_SIZE + room_name_size + token_size:].decode('utf-8'))
-                if not self.rooms[room_name].broadcast(
-                        address, token, payload):
+                payload = json.loads(data[DataSize.MSG_HEADER_SIZE +
+                                     room_name_size + token_size:].decode('utf-8'))
+                if not self.rooms[room_name].broadcast(address, token, payload):
                     header = struct.pack('!B B', 0, 0)
                     body = {
-                        "sender": "Server",
-                        "message": "You are not authenticated"
+                        'sender': 'Server',
+                        'message': 'You are not authenticated'
                     }
                     body = json.dumps(body).encode('utf-8')
-                    self.udp_socket.sendto(
-                        header + body, address)
+                    self.udp_socket.sendto(header + body, address)
         except Exception as e:
             print(f'receive: {e}')
             self.tcp_socket.close()
@@ -198,7 +155,7 @@ class Server:
             return self.rooms[room_name]
         return None
 
-    def create_room(self, room_name, client, password=""):
+    def create_room(self, room_name, client, password=''):
         self.rooms[room_name] = ChatRoom(room_name, password)
         self.rooms[room_name].add_client(client)
 
@@ -208,7 +165,7 @@ class Server:
         return True
 
     def generate_token(self):
-        return secrets.token_hex(Server.TOKEN_SIZE)
+        return secrets.token_hex(DataSize.TOKEN_SIZE)
 
     def destroy_empty_room_periodically(self):
         while True:
@@ -223,7 +180,7 @@ class Server:
             time.sleep(10)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
 
     server = Server()
-    server.start()
+    Server.start()
