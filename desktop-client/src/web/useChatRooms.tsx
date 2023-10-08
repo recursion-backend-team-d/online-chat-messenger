@@ -80,8 +80,12 @@ const useChatRooms = () => {
         setRooms(availableRooms);
       };
 
-      client.getAvailableRoom(getAvailableRoomCallback);
+      client.getAvailableRoomForLoop(getAvailableRoomCallback);
     }
+    return () => {
+      client?.stopSendingRequests();
+      console.log("stop sending requests");
+    };
   }, [client]);
 
   return {

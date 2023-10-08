@@ -45,10 +45,10 @@ class Server:
         self.udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.rooms = {}
 
-        self.tcp_socket.bind(self.tcp_address)
-        self.udp_socket.bind(self.udp_address)
         self.tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.tcp_socket.bind(self.tcp_address)
+        self.udp_socket.bind(self.udp_address)
 
     def start(self):
         threading.Thread(target=self.wait_for_client_con, daemon=True).start()

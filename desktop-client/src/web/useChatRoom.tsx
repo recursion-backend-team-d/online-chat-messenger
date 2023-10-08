@@ -69,20 +69,10 @@ const useChatRoom = (clientName: string) => {
 
     if (client) {
       client.receiveMessages(messageCallback, systemCallback);
-      const getAvailableRoomCallback = (roomsData: any) => {
-        if (!roomsData)
-          return;
-        const roomMembers = roomsData[roomName!]?.members;
-        setMembers(roomMembers);
-      };
-      client.getAvailableRoom(getAvailableRoomCallback);
-      client.getAvailableRoomForLoop(getAvailableRoomCallback);
-
-      return () => {
-        client.removeMessageListener(messageCallback, systemCallback);
-        client.stopSendingRequests();
-      };
     }
+    return () => {
+      client?.removeMessageListener(messageCallback, systemCallback);
+    };
   }, [client]);
 
   useEffect(scrollToBottom, [messages]);

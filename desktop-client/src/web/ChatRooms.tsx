@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Button,
   Heading,
@@ -85,7 +85,9 @@ const ChatRooms: React.FC = () => {
                     {room.roomName}
                   </Heading>
                 </Center>
-                <Text color="gray.600">Members: {room.members?.join(", ")}</Text>
+                <Text color="gray.600">
+                  Members: {room.members?.join(", ")}
+                </Text>
                 <Button
                   mt={4}
                   alignSelf="center"

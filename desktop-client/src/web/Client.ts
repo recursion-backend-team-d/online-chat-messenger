@@ -51,15 +51,10 @@ export class Client {
     console.log("Success constructor");
   }
 
-  async getAvailableRoomForLoop(callback: (rooms: any) => void){
-    // if (this.intervalId) {
-    //   console.warn("Requests are already being sent periodically. If you want to restart, please stop first.");
-    //   return;
-    // }
+  async getAvailableRoomForLoop(callback: (rooms: any) => void) {
+    console.log("getAvailableRoomForLoop");
 
     const sendRequestToServer = async () => {
-      // ここでサーバーへのリクエストを実装します
-      console.log("Sending request to server...");
       const header = Buffer.alloc(32);
       header.writeUInt8(this.roomNameSize, 0);
       header.writeUInt8(3, 1);
@@ -73,7 +68,6 @@ export class Client {
       const payloadData = Buffer.from(JSON.stringify(payload), "utf-8");
       payloadSizeBuffer.writeBigUInt64BE(BigInt(payloadData.length), 21); // ペイロードの長さを最後の8バイトに書き込む
       header.set(payloadSizeBuffer, 3); // 第3バイトから始まる位置にpayloadSizeBufferをセット
-      // console.log(header.length)
       const roomNameBuffer = Buffer.from(this.roomName, "utf-8");
 
       // Combine the header, room name, and payload data into a single buffer
@@ -86,18 +80,21 @@ export class Client {
       const headerBuffer = await this.getResponseData(32);
       // headerの解析
       const resHeader = this.readHeader(headerBuffer);
-      console.log(resHeader);
-      console.log("receiving responsePayload");
       // サーバーから入室可能なルームの情報を受け取る
       const responsePayloadDate = await this.getResponseData(
         resHeader.payloadLength
       );
-      console.log("get responsePayload");
-      console.log(responsePayloadDate);
-      // 受け取った情報をデコードしてJSON形式からJSのオブジェクトへ変換
-      const responsePayload = JSON.parse(responsePayloadDate.toString("utf-8"));
+      console.log("responsePayloadData", responsePayloadDate);
+      let responsePayload;
+      try {
+        responsePayload = JSON.parse(responsePayloadDate.toString("utf-8"));
+        console.log("responsePayload", responsePayload);
+      } catch (e) {
+        console.log(e);
+        throw new Error("Failed to parse response payload. JSON");
+      }
       callback(responsePayload["rooms"]);
-    }
+    };
 
     // 5秒ごとにsendRequestToServer関数を実行する
     this.intervalId = setInterval(sendRequestToServer, 5000); // 5秒毎に実行
@@ -106,33 +103,12 @@ export class Client {
   // リクエストの送信を停止するメソッド
   stopSendingRequests(): void {
     if (this.intervalId) {
-        clearInterval(this.intervalId);
-        this.intervalId = null;
-        console.log("Stopped sending periodic requests.");
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+      console.log("Stopped sending periodic requests.");
     } else {
-        console.warn("No periodic requests are currently being sent.");
+      console.warn("No periodic requests are currently being sent.");
     }
-  }
-
-  // usernameをセットするボタンを押した瞬間にこのメソッドを使用することを想定
-  async getAvailableRoom(callback: (rooms: any) => void) {
-    // サーバーにコネクト
-    await this.connectServer();
-    // サーバーから入室可能なルームの情報のheaderを受け取る
-    const headerBuffer = await this.getResponseData(32);
-    // headerの解析
-    const header = this.readHeader(headerBuffer);
-    console.log(header);
-    console.log("receiving responsePayload");
-    // サーバーから入室可能なルームの情報を受け取る
-    const responsePayloadDate = await this.getResponseData(
-      header.payloadLength
-    );
-    console.log("get responsePayload");
-    console.log(responsePayloadDate);
-    // 受け取った情報をデコードしてJSON形式からJSのオブジェクトへ変換
-    const responsePayload = JSON.parse(responsePayloadDate.toString("utf-8"));
-    callback(responsePayload["rooms"]);
   }
 
   async start(
@@ -250,21 +226,18 @@ export class Client {
 
         console.log("get responsePayload");
         console.log(responsePayloadDate);
-        console.log(responsePayloadDate.toString("utf-8"))
+        console.log(responsePayloadDate.toString("utf-8"));
         const responsePayload = JSON.parse(
           responsePayloadDate.toString("utf-8")
         );
 
         if (header.state === 1) {
           console.log("Received a request response from the server.");
-          console.log(responsePayload.message);
           continue;
         } else if (header.state === 2) {
           console.log(responsePayload);
           this.token = responsePayload.token;
-          console.log(this.token);
           this.tokenSize = Buffer.from(this.token, "hex").length;
-          console.log(this.tokenSize);
           console.log("Connection successfully established.");
           this.tcpSocket.end();
           break;
