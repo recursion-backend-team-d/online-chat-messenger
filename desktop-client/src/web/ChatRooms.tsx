@@ -84,7 +84,7 @@ const ChatRooms: React.FC = () => {
                       handleOpenPasswordModal(room.roomName);
                       return;
                     }
-                    handleEnterRoom(client!.getUserName(), room.roomName);
+                    handleEnterRoom(room.roomName);
                   }}
                 >
                   Enter

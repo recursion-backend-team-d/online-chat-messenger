@@ -32,10 +32,15 @@ const useChatRooms = () => {
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   let navigate = useNavigate();
 
-  const handleEnterRoom = async (clientName: string, roomName: string) => {
+  const handleEnterRoom = async (roomName: string) => {
     try {
-      await client?.start(Operation.ENTER_ROOM, clientName, roomName, "");
-      navigate(`/chatroom/${roomName}`);
+      await client?.start(
+        Operation.ENTER_ROOM,
+        client?.getUserName(),
+        roomName,
+        ""
+      );
+      navigate(`/chatroom/${roomName}/${client?.getUserName()}`);
     } catch (e) {
       console.log(e);
     }
@@ -49,7 +54,7 @@ const useChatRooms = () => {
         selectedRoom!,
         password
       );
-      navigate(`/chatroom/${selectedRoom}`);
+      navigate(`/chatroom/${selectedRoom}/${client?.getUserName()}`);
     } catch (e) {
       console.log(e);
     }

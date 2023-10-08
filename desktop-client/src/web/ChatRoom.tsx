@@ -16,7 +16,13 @@ import MembersModal from "./MembersModal";
 import useChatRoom from "./useChatRoom";
 
 const ChatRoom: React.FC = () => {
+  const { roomName, clientName } = useParams<{
+    roomName: string;
+    clientName: string;
+  }>();
+
   const {
+    client,
     message,
     setMessage,
     messages,
@@ -24,7 +30,7 @@ const ChatRoom: React.FC = () => {
     messagesEndRef,
     handleLeaveRoom,
     sendMessage,
-  } = useChatRoom();
+  } = useChatRoom(clientName!);
 
   const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const handleOpenMembersModal = () => {
@@ -33,7 +39,6 @@ const ChatRoom: React.FC = () => {
   const handleCloseMembersModal = () => {
     setIsMembersModalOpen(false);
   };
-  const { roomName } = useParams<{ roomName: string }>();
 
   return (
     <Flex direction="column" h="100vh">
@@ -67,7 +72,7 @@ const ChatRoom: React.FC = () => {
         >
           View Members
         </Button>
-        <Box
+        <Flex
           width="100%"
           bgGradient="linear(to-b, gray.50, gray.100)"
           boxShadow="base"
@@ -78,32 +83,45 @@ const ChatRoom: React.FC = () => {
           maxWidth={"80vw"}
           height="100%"
           resize={"none"}
+          flexDirection="column"
         >
-          {messages.map((message, index) => (
-            <Box
-              key={index}
-              mb={2}
-              p={2}
-              borderRadius="md"
-              bg={
-                message.startsWith(client!.getUserName())
-                  ? "gray.100"
-                  : "green.300"
-              }
-              alignSelf={
-                message.startsWith(client!.getUserName())
-                  ? "flex-start"
-                  : "flex-end"
-              }
-            >
-              <Text fontSize="sm" color="gray.600">
-                {message.split(":")[0]}
-              </Text>
-              <Text fontWeight="medium">{message.split(":")[1]}</Text>
-            </Box>
-          ))}
+          {messages.map((message, index) => {
+            const isClientMessage = message.startsWith(client!.getUserName());
+            const sender = message.split(":")[0];
+            const messageContent = message.split(":")[1];
+            return (
+              <Flex
+                key={index}
+                mb={2}
+                p={2}
+                borderRadius="md"
+                bg={isClientMessage ? "green.100" : "gray.100"}
+                color={"black"}
+                alignSelf={isClientMessage ? "flex-end" : "flex-start"}
+                maxWidth="70%"
+                justifyContent={"column"}
+                display={"table-column"}
+              >
+                <Text
+                  fontSize="lg"
+                  fontWeight="medium"
+                  color={isClientMessage ? "white" : "gray.600"}
+                  isTruncated
+                >
+                  {sender}
+                </Text>
+                <Text
+                  fontSize="lg"
+                  fontWeight="medium"
+                  wordBreak={"break-word"}
+                >
+                  {messageContent}
+                </Text>
+              </Flex>
+            );
+          })}
           <div ref={messagesEndRef} />
-        </Box>
+        </Flex>
       </VStack>
       <Box
         bottom={0}

@@ -3,7 +3,7 @@ import { Client } from "./Client";
 import { useToast } from "@chakra-ui/react";
 import { useParams, useNavigate } from "react-router-dom";
 
-const useChatRoom = () => {
+const useChatRoom = (clientName: string) => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<string[]>([]);
   const [client, setClient] = useState<Client | undefined>(undefined);
@@ -47,10 +47,9 @@ const useChatRoom = () => {
 
   useEffect(() => {
     if (!client) {
-      const anonymousClient = new Client();
-      anonymousClient.setName("Anonymous");
-      setClient(anonymousClient);
-      return;
+      const newClient = new Client();
+      newClient.setName(clientName);
+      setClient(newClient);
     }
 
     const messageCallback = (sender: string, messageContent: string) => {
@@ -68,16 +67,18 @@ const useChatRoom = () => {
       notifyError(`${sender}: operation:${operation} username:${username}`);
     };
 
-    client.receiveMessages(messageCallback, systemCallback);
-    const getAvailableRoomCallback = (roomsData: any) => {
-      const roomMembers = roomsData[roomName!].members;
-      setMembers(roomMembers);
-    };
-    client.getAvailableRoom(getAvailableRoomCallback);
+    if (client) {
+      client.receiveMessages(messageCallback, systemCallback);
+      const getAvailableRoomCallback = (roomsData: any) => {
+        const roomMembers = roomsData[roomName!].members;
+        setMembers(roomMembers);
+      };
+      client.getAvailableRoom(getAvailableRoomCallback);
 
-    return () => {
-      client.removeMessageListener(messageCallback, systemCallback);
-    };
+      return () => {
+        client.removeMessageListener(messageCallback, systemCallback);
+      };
+    }
   }, [client]);
 
   useEffect(scrollToBottom, [messages]);
@@ -98,6 +99,7 @@ const useChatRoom = () => {
   };
 
   return {
+    client,
     message,
     setMessage,
     messages,
