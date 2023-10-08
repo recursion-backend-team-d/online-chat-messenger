@@ -51,18 +51,15 @@ class Client:
         payload_data = json.dumps(payload).encode('utf-8')
         header = struct.pack("!B B B 29s", self.room_name_size, operation, 0, len(
             payload_data).to_bytes(29, 'big'))
-        self.tcp_socket.send(
-            header + self.room_name.encode('utf-8') + payload_data)
+        self.tcp_socket.send(header + self.room_name.encode('utf-8') + payload_data)
 
         # サーバーから応答、完了待ち
         while True:
             response_header = self.tcp_socket.recv(32)
             response_room_name_size, _, response_state, response_payload_size = struct.unpack(
                 "!B B B 29s", response_header)
-            response_payload_data = self.tcp_socket.recv(
-                int.from_bytes(response_payload_size, 'big'))
-            response_payload = json.loads(
-                response_payload_data.decode('utf-8'))
+            response_payload_data = self.tcp_socket.recv(int.from_bytes(response_payload_size, 'big'))
+            response_payload = json.loads(response_payload_data.decode('utf-8'))
 
             if response_state == 1:
                 print("Received a request response from the server.")
@@ -88,8 +85,7 @@ class Client:
     def prompt_for_operation(self):
         while True:
             choice = input(
-                "Do you want to create a new chat room \
-                    or join an existing one? (Type 'create' or 'join'): ")
+                "Do you want to create a new chat room or join an existing one? (Type 'create' or 'join'): ")
             choice = choice.replace(" ", "").lower()  # 空白を取り除いて、小文字に変換。
             if choice == 'create' or choice == 'join':  # 小文字に変換して空白を取り除く。
                 return 1 if choice == 'create' else 2
@@ -101,9 +97,7 @@ class Client:
             room_name = input("Enter room name: ")
             room_name_size = len(room_name.encode('utf-8'))
             if room_name_size > Client.ROOM_NAME_SIZE:
-                print(
-                    f'Room name must be equal to \
-                        or less than {Client.ROOM_NAME_SIZE} bytes')
+                print(f'Room name must be equal to or less than {Client.ROOM_NAME_SIZE} bytes')
                 continue
             self.room_name = room_name
             self.room_name_size = room_name_size
@@ -116,9 +110,7 @@ class Client:
         while True:
             username = input('Enter your username: ')
             if len(username.encode('utf-8')) > Client.NAME_SIZE:
-                print(
-                    f'Your name must be equal to \
-                        or less than {Client.NAME_SIZE} bytes')
+                print(f'Your name must be equal to or less than {Client.NAME_SIZE} bytes')
                 continue
             self.name_size = len(username.encode('utf-8'))
             self.username = username
@@ -131,7 +123,10 @@ class Client:
                 room_name_size, token_size = struct.unpack("!B B", message[:2])
                 receive_payload = json.loads(
                     message[2 + room_name_size + token_size:].decode('utf-8'))
-                print(receive_payload)
+                if 'sender' in receive_payload and 'message' in receive_payload:
+                    print(f'{receive_payload["sender"]}: {receive_payload["message"]}')
+                else:
+                    print(receive_payload)
         finally:
             print('socket closig....')
             self.udp_socket.close()
@@ -150,8 +145,7 @@ class Client:
                     'utf-8') + self.token.encode('utf-8') + json.dumps(send_payload).encode('utf-8')
 
                 if len(header) + len(body) > Client.BUFFER_SIZE:
-                    print(
-                        f'Messeges must be equal to  or less than \
+                    print(f'Messeges must be equal to  or less than \
                         {Client.BUFFER_SIZE - len(header) - self.room_name_size - self.token_size} bytes')
                     continue
                 message = header + body
