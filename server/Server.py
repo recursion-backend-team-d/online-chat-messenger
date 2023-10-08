@@ -143,8 +143,15 @@ class Server:
                              room_name_size + token_size].decode('utf-8')
                 payload = json.loads(data[DataSize.MSG_HEADER_SIZE +
                                      room_name_size + token_size:].decode('utf-8'))
+                # ユーザを切断
+                if payload['sender'] == 'system' and payload['operation'] == ClientOperation.LEAVE_ROOM:
+                    self.rooms[room_name].remove_client(payload['username'])
                 if not self.rooms[room_name].broadcast(address, token, payload):
                     header = struct.pack('!B B', 0, 0)
+                    payload = {
+                        'sender': 'system',
+                        'message': 'You are not authenticated'
+                    }
                     payload_data = json.dumps(payload).encode('utf-8')
                     self.udp_socket.sendto(header + payload_data, address)
         except Exception as e:
@@ -156,22 +163,6 @@ class Server:
             for client in room.clients.values():
                 client.new_send_message(room_name, payload)
 
-    def system_notificaition_client_join(self, room_name, username):
-        payload = {
-            'sender': 'system',
-            'operation': ClientOperation.JOIN_ROOM,
-            'username': username
-        }
-        self.system_broadcast(room_name, payload)
-
-    def system_notification_client_leave(self, room_name, username):
-        payload = {
-            'sender': 'system',
-            'operation': ClientOperation.LEAVE_ROOM,
-            'username': username
-        }
-        self.system_broadcast(room_name, payload)
-
     def find_room(self, room_name):
         if room_name in self.rooms and len(self.rooms[room_name].clients) > 0:
             return self.rooms[room_name]
@@ -180,12 +171,10 @@ class Server:
     def create_room(self, room_name, client, password=''):
         self.rooms[room_name] = ChatRoom(room_name, password)
         self.rooms[room_name].add_client(client)
-        self.system_notificaition_client_join(room_name, client.name)
 
     def assign_room(self, room_name, client):
         if not self.rooms[room_name].add_client(client):
             return False
-        self.system_notificaition_client_join(room_name, client.name)
         return True
 
     def generate_token(self):
@@ -195,8 +184,8 @@ class Server:
         while True:
             empty_room = []
             for room in self.rooms.values():
-                room.check_timeout(self.system_notification_client_leave)
-                room.delete_inactive_clients(self.system_notification_client_leave)
+                room.check_timeout()
+                room.delete_inactive_clients()
                 if len(room.clients) == 0:
                     empty_room.append(room.name)
             for room_name in empty_room:
