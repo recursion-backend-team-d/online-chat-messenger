@@ -46,7 +46,7 @@ const ChatRoom: React.FC = () => {
         spacing={4}
         p={6}
         width="100%"
-        maxW="600px"
+        maxW="1800px"
         margin="0 auto"
         flexGrow={1}
         position="relative"
@@ -105,13 +105,13 @@ const ChatRoom: React.FC = () => {
                 <Text
                   fontSize="lg"
                   fontWeight="medium"
-                  color={isClientMessage ? "white" : "gray.600"}
+                  color={isClientMessage ? "green.600" : "gray.600"}
                   isTruncated
                 >
                   {sender}
                 </Text>
                 <Text
-                  fontSize="lg"
+                  fontSize="xl"
                   fontWeight="medium"
                   wordBreak={"break-word"}
                 >
