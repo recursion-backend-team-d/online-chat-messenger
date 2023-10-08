@@ -56,6 +56,7 @@ class Server {
   +start(): None
   +wait_for_client_conn(): None
   +establish_chat(conn): None
+  +inform_client_of_available_rooms: None
   +accept_request(conn)
   +send_response(conn, operation, state, status, token): None
   +find_room(room_name): ChatRoom
@@ -84,6 +85,7 @@ ChatRoom o-- ChatClient
 |        start        | サーバーをスタートする。wait_for_client_con, destoroy_empty_room_periodicallyメソッドをそれぞれ別スレッドで呼び出す。receiveはメインスレッドで呼び出す。                                                                                                                                                                                                                                                                                          |
 | wait_for_client_con | クライアントの TCP 接続を listen しておく。accept するたびに、別スレッドで establish_chat を呼び出す。その時に、accept の戻り値である、新しく作られたソケットオブジェクトを establish_chat に渡す。                                                                                                                                                                      |
 |   establish_chat    | 引数として受け取ったソケットオブジェクト conn を用いて、クライアントとやり取りする。データを受信したのち、ヘッダーの Operation によって create_room か assign_room を呼び出す。その時に ChatClient クラスをインスタンス化してクライアントを作る。インスタンス化には、リクエストのpayloadにあるUDPソケットのIP/ポート番号を渡す。状態ごとに、クライアントにレスポンスを送る |
+| inform_client_of_available_rooms | クライアントに入室可能なルームを通知する |
 | accept_request | クライアントからのリクエストを受け取る。structモジュールで、room_name, etcに分割、デコードして返す |
 | send_response | TCPでレスポンスを返す |
 | find_room | 指定されたroom_nameのルームが存在すればそれを返す |
@@ -213,6 +215,14 @@ class Client {
 #### Client Request
 ```json
 // op 1 (create room), op 2 (join room)
+  {
+  "rooms": [
+      "room_name1": {
+      "members": ["member_name1", "member_name2"...],
+      "password_required": true
+      }
+  ]
+  }
   // サーバの初期化（0）
   {
     "username": "example",
@@ -243,3 +253,18 @@ class Client {
 - Client側でメッセージのサイズを検証。4096を超えたら再入力を促す。
 - ヘッダー：RoomNameSize（1バイト）| TokenSize（1バイト）
 - ボディ：最初のRoomNameSizeバイトはルーム名、次のTokenSizeバイトはトークン文字列、そしてその残りが実際のメッセージです。
+```
+// 通常メッセージ
+{
+  "sender": "example sender",
+  "message": "example",
+}
+// システム（送受信）
+// ヘッダー：RoomNameSize（1バイト）| TokenSize（1バイト）
+// operation 1(入室), 2（退室）
+{
+  "sender": "system",
+  "operation": 0,
+  "username": "example,
+}
+```

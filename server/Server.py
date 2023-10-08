@@ -61,6 +61,7 @@ class Server:
                 self.tcp_socket.close()
 
     def establish_chat(self, conn):
+        self.inform_client_of_available_rooms(conn)
         room_name, operation, state, operation_payload = self.receive_request(conn)
         print(room_name, operation, state, operation_payload)
         self.send_response(conn, operation, 1, 202)
@@ -100,6 +101,27 @@ class Server:
                     self.send_response(conn, operation, 2, 400)
             else:
                 self.send_response(conn, operation, 3, 400)
+
+    def inform_client_of_available_rooms(self, conn):
+        try:
+            payload = {
+                "rooms": []
+            }
+            for room_name, room in self.rooms.items():
+                if len(room.clients) == 0:
+                    continue
+                room_data = {
+                    "members": list(room.clients.keys()),
+                    "password_required": room.is_password_required,
+                }
+                payload["rooms"].append({room_name: room_data})
+            print(payload)
+            payload_data = json.dumps(payload).encode('utf-8')
+            header = struct.pack('!B B B 29s', 0, 0, 0, len(payload_data).to_bytes(29, 'big'))
+            conn.send(header + payload_data)
+        except Exception as e:
+            print(f'inform_client_of_available_rooms: {e}')
+            self.tcp_socket.close()
 
     def receive_request(self, conn):
         header = conn.recv(DataSize.REQUEST_HEADER_SIZE)
