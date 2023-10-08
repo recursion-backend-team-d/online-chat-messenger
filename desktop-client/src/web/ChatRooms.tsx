@@ -70,15 +70,26 @@ const ChatRooms: React.FC = () => {
 
         <Grid templateColumns="repeat(3, 1fr)" gap={6}>
           {rooms.map((room, index) => (
-            <Box key={index} borderWidth="1px" borderRadius="lg" padding={4}>
+            <Box
+              key={index}
+              borderWidth="1px"
+              borderRadius="lg"
+              padding={4}
+              backgroundColor="white"
+              boxShadow="sm"
+              _hover={{ boxShadow: "md" }}
+            >
               <Flex direction="column" height="100%">
                 <Center flexGrow={1}>
-                  <Heading size="md">{room.roomName}</Heading>
+                  <Heading size="md" color="teal.600">
+                    {room.roomName}
+                  </Heading>
                 </Center>
-                <p>Members: {room.members.join(", ")}</p>
+                <Text color="gray.600">Members: {room.members.join(", ")}</Text>
                 <Button
                   mt={4}
                   alignSelf="center"
+                  colorScheme="teal"
                   onClick={() => {
                     if (room.password_required) {
                       handleOpenPasswordModal(room.roomName);
@@ -86,6 +97,8 @@ const ChatRooms: React.FC = () => {
                     }
                     handleEnterRoom(room.roomName);
                   }}
+                  _hover={{ transform: "scale(1.05)" }}
+                  _active={{ transform: "scale(0.95)" }}
                 >
                   Enter
                 </Button>
