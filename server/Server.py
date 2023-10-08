@@ -169,7 +169,7 @@ class Server:
                 room_name = data[DataSize.MSG_HEADER_SIZE:DataSize.MSG_HEADER_SIZE +
                                  room_name_size].decode('utf-8')
                 token = data[DataSize.MSG_HEADER_SIZE + room_name_size:DataSize.MSG_HEADER_SIZE +
-                             room_name_size + token_size].hex()
+                             room_name_size + token_size].decode('utf-8')
                 payload = json.loads(data[DataSize.MSG_HEADER_SIZE +
                                      room_name_size + token_size:].decode('utf-8'))
                 if not self.rooms[room_name].broadcast(address, token, payload):

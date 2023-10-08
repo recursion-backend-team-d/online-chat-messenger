@@ -211,7 +211,6 @@ export class Client {
       // const headerBuffer = await this.getResponseData(32);
 
       try {
-        this.stopSendingRequests();
         const headerBuffer = await Promise.race([
           this.getResponseData(32),
           this.timeout(Client.TIMEOUT_MS),
@@ -267,6 +266,7 @@ export class Client {
           console.log(this.tokenSize);
           console.log("Connection successfully established.");
           this.tcpSocket.end();
+          this.residualData = null;
           break;
         }
       } catch (error) {

@@ -56,10 +56,7 @@ class ChatRoom:
 
     def is_authenticated(self, address, token):
         is_token_verified = token in self.verified_token_to_address
-        is_address_matched = self.verified_token_to_address.get(
-            token) == address
-        print(address)
-        print(self.verified_token_to_address)
+        is_address_matched = self.verified_token_to_address.get(token) == address
         return is_token_verified and is_address_matched
 
     def get_client_by_name(self, name):
