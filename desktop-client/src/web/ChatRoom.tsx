@@ -1,8 +1,6 @@
-import React, { useState, useEffect, useRef } from "react";
-import { IconButton } from "@chakra-ui/react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPaperPlane } from "@fortawesome/free-solid-svg-icons";
+import React, { useState } from "react";
 import {
+  IconButton,
   Box,
   Button,
   Heading,
@@ -10,114 +8,32 @@ import {
   Text,
   Textarea,
   Flex,
-  useToast,
 } from "@chakra-ui/react";
-import { Client } from "./Client";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPaperPlane } from "@fortawesome/free-solid-svg-icons";
 import MembersModal from "./MembersModal";
+import useChatRoom from "./useChatRoom";
 
 const ChatRoom: React.FC = () => {
-  const [message, setMessage] = useState("");
-  const [messages, setMessages] = useState<string[]>([]);
-  const [client, setClient] = useState<Client | undefined>(undefined);
-  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
-  const [members, setMembers] = useState<string[]>([]);
-  const { roomName } = useParams<{ roomName: string }>();
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const toast = useToast();
-  const navigate = useNavigate();
+  const {
+    message,
+    setMessage,
+    messages,
+    members,
+    messagesEndRef,
+    handleLeaveRoom,
+    sendMessage,
+  } = useChatRoom();
 
+  const [isMembersModalOpen, setIsMembersModalOpen] = useState(false);
   const handleOpenMembersModal = () => {
     setIsMembersModalOpen(true);
   };
-
   const handleCloseMembersModal = () => {
     setIsMembersModalOpen(false);
   };
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  const notifyError = (message: string) => {
-    toast({
-      title: "System Notification",
-      description: message,
-      status: "info",
-      duration: 5000,
-      isClosable: true,
-      position: "top-right",
-    });
-  };
-
-  const handleLeaveRoom = async () => {
-    try {
-      client!.leaveRoomUsingUDP();
-      toast({
-        title: "System Notification",
-        description: "You have left the room.",
-        status: "success",
-        duration: 5000,
-        isClosable: true,
-        position: "top-right",
-      });
-      navigate("/");
-    } catch (error) {
-      notifyError("Error leaving the room.");
-    }
-  };
-
-  useEffect(() => {
-    if (!client) {
-      const anonymousClient = new Client();
-      anonymousClient.setName("Anonymous");
-      setClient(anonymousClient);
-      return;
-    }
-
-    const messageCallback = (sender: string, messageContent: string) => {
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        `${sender}: ${messageContent}`,
-      ]);
-    };
-
-    const systemCallback = (
-      sender: string,
-      operation: number,
-      username: string
-    ) => {
-      notifyError(`${sender}: operation:${operation} username:${username}`);
-    };
-
-    client.receiveMessages(messageCallback, systemCallback);
-    const getAvailableRoomCallback = (roomsData: any) => {
-      const roomMembers = roomsData[roomName!].members;
-      setMembers(roomMembers);
-    };
-    client.getAvailableRoom(getAvailableRoomCallback);
-
-    return () => {
-      client.removeMessageListener(messageCallback, systemCallback);
-    };
-  }, [client]);
-
-  useEffect(scrollToBottom, [messages]);
-
-  const sendMessage = async () => {
-    if (message) {
-      try {
-        await client!.sendMessages(message.trim());
-        setMessage("");
-        setMessages((prevMessages) => [
-          ...prevMessages,
-          `${client!.getUserName()}: ${message}`,
-        ]);
-      } catch (error) {
-        console.log(error);
-      }
-    }
-  };
+  const { roomName } = useParams<{ roomName: string }>();
 
   return (
     <Flex direction="column" h="100vh">
