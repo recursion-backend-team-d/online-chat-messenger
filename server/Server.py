@@ -22,6 +22,7 @@ STATUS_MESSAGE = {
 class Operation(IntEnum):
     CREATE_ROOM = 1
     JOIN_ROOM = 2
+    FETCH_ROOM_INFO = 3
 
 
 class DataSize(IntEnum):
@@ -29,6 +30,11 @@ class DataSize(IntEnum):
     MESSAGE_SIZE = 4096
     MSG_HEADER_SIZE = 2
     TOKEN_SIZE = 125
+
+
+class Status(IntEnum):
+    ACKNOWLEDGE = 1
+    COMPLETE = 2
 
 
 class Server:
@@ -41,6 +47,8 @@ class Server:
 
         self.tcp_socket.bind(self.tcp_address)
         self.udp_socket.bind(self.udp_address)
+        self.tcp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     def start(self):
         threading.Thread(target=self.wait_for_client_con, daemon=True).start()
@@ -61,10 +69,9 @@ class Server:
                 self.tcp_socket.close()
 
     def establish_chat(self, conn):
-        self.inform_client_of_available_rooms(conn)
         room_name, operation, state, operation_payload = self.receive_request(conn)
         print(room_name, operation, state, operation_payload)
-        self.send_response(conn, operation, 1, 202)
+        self.send_response(conn, operation, Status.ACKNOWLEDGE, 202)
 
         token = self.generate_token()
         if operation == Operation.CREATE_ROOM:
@@ -76,9 +83,9 @@ class Server:
                     self.create_room(room_name, client, operation_payload['password'])
                 else:
                     self.create_room(room_name, client)
-                self.send_response(conn, operation, 2, 201, token)
+                self.send_response(conn, operation, Status.COMPLETE, 201, token)
             else:
-                self.send_response(conn, operation, 2, 400)
+                self.send_response(conn, operation, Status.COMPLETE, 409)
 
         if operation == Operation.JOIN_ROOM:
             if self.find_room(room_name):
@@ -89,18 +96,22 @@ class Server:
 
                 room_to_join = self.find_room(room_name)
                 if room_to_join.is_password_required and 'password' not in operation_payload:
-                    self.send_response(conn, operation, 2, 400)
+                    self.send_response(conn, operation, Status.COMPLETE, 401)
                     return
                 if room_to_join.is_password_required \
                         and room_to_join.password != operation_payload['password']:
-                    self.send_response(conn, operation, 2, 400)
+                    self.send_response(conn, operation, Status.COMPLETE, 400)
                     return
                 if self.assign_room(room_name, client):
-                    self.send_response(conn, operation, 2, 200, token)
+                    self.send_response(conn, operation, Status.COMPLETE, 200, token)
                 else:
-                    self.send_response(conn, operation, 2, 400)
+                    self.send_response(conn, operation, Status.COMPLETE, 409)
             else:
-                self.send_response(conn, operation, 3, 400)
+                self.send_response(conn, operation, Status.COMPLETE, 404)
+
+        if operation == Operation.FETCH_ROOM_INFO:
+            print('here')
+            self.inform_client_of_available_rooms(conn)
 
     def inform_client_of_available_rooms(self, conn):
         try:
@@ -117,7 +128,8 @@ class Server:
                 payload["rooms"].append({room_name: room_data})
             print(payload)
             payload_data = json.dumps(payload).encode('utf-8')
-            header = struct.pack('!B B B 29s', 0, 0, 0, len(payload_data).to_bytes(29, 'big'))
+            header = struct.pack('!B B B 29s', 0, Operation.FETCH_ROOM_INFO, Status.COMPLETE,
+                                 len(payload_data).to_bytes(29, 'big'))
             conn.send(header + payload_data)
         except Exception as e:
             print(f'inform_client_of_available_rooms: {e}')
@@ -157,7 +169,7 @@ class Server:
                 room_name = data[DataSize.MSG_HEADER_SIZE:DataSize.MSG_HEADER_SIZE +
                                  room_name_size].decode('utf-8')
                 token = data[DataSize.MSG_HEADER_SIZE + room_name_size:DataSize.MSG_HEADER_SIZE +
-                             room_name_size + token_size].decode('utf-8')
+                             room_name_size + token_size].hex()
                 payload = json.loads(data[DataSize.MSG_HEADER_SIZE +
                                      room_name_size + token_size:].decode('utf-8'))
                 if not self.rooms[room_name].broadcast(address, token, payload):

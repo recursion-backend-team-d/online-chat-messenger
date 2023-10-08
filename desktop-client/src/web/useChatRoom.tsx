@@ -70,13 +70,17 @@ const useChatRoom = (clientName: string) => {
     if (client) {
       client.receiveMessages(messageCallback, systemCallback);
       const getAvailableRoomCallback = (roomsData: any) => {
-        const roomMembers = roomsData[roomName!].members;
+        if (!roomsData)
+          return;
+        const roomMembers = roomsData[roomName!]?.members;
         setMembers(roomMembers);
       };
       client.getAvailableRoom(getAvailableRoomCallback);
+      client.getAvailableRoomForLoop(getAvailableRoomCallback);
 
       return () => {
         client.removeMessageListener(messageCallback, systemCallback);
+        client.stopSendingRequests();
       };
     }
   }, [client]);

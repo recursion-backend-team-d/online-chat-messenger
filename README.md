@@ -1,7 +1,13 @@
 # online-chat-messenger
+### Description
+RecursionCSのチーム開発で制作したチャットアプリケーションです。
+TCP/UDPソケットを使用して実装しています。
+クライアントはTCP接続でサーバにチャットルームの作成を依頼し、サーバはリクエストに従ってルームを作成します。
+ルームをTCP接続で確立したのちは、UDP接続でチャットが可能です。
 
-### Class Diagram
+### Demonstration
 
+### Design
 #### Server
 
 ```mermaid
@@ -209,12 +215,13 @@ class Client {
 |      send_messages       | udp_socket でメッセージをサーバに送信する                                                                                                                                                       |
 |      receive_messages       | udp_socket でメッセージをサーバから受信する                                                                                                                                                       |
 
-### TCP
+### Protocol
+#### TCP
 - ヘッダー（32バイト）：RoomNameSize（1バイト） | Operation（1バイト） | State（1バイト） | OperationPayloadSize（29バイト）
 - ボディ：最初のRoomNameSizeバイトがルーム名で、その後にOperationPayloadSizeバイトが続きます。ルーム名の最大バイト数は2^8バイトであり、OperationPayloadSizeの最大バイト数は2^29バイトです。
-#### Client Request
+##### Client Request
 ```json
-// op 1 (create room), op 2 (join room)
+// op 1 (create room), op 2 (join room), op 2 (fetch_room_info)
   {
   "rooms": [
       "room_name1": {
@@ -232,9 +239,9 @@ class Client {
   }
 ```
 
-#### Server Response
+##### Server Response
 ```json
-// op 1 (create room), op 2 (join room)
+// op 1 (create room), op 2 (join room), op 3 (fetch_room_info)
   // リクエストの応答（1）
   {
     "status": 202,
@@ -249,7 +256,7 @@ class Client {
   }
 ```
 
-### UDP
+#### UDP
 - Client側でメッセージのサイズを検証。4096を超えたら再入力を促す。
 - ヘッダー：RoomNameSize（1バイト）| TokenSize（1バイト）
 - ボディ：最初のRoomNameSizeバイトはルーム名、次のTokenSizeバイトはトークン文字列、そしてその残りが実際のメッセージです。
@@ -259,6 +266,7 @@ class Client {
   "sender": "example sender",
   "message": "example",
 }
+
 // システム（送受信）
 // ヘッダー：RoomNameSize（1バイト）| TokenSize（1バイト）
 // operation 1(入室), 2（退室）

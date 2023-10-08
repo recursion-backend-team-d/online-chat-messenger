@@ -31,6 +31,7 @@ export class Client {
   private token: string = "";
   private tokenSize: number = 0;
   private residualData: Buffer | null = null;
+  private intervalId: NodeJS.Timeout | null = null;
 
   constructor() {
     console.log("This is a constructor.");
@@ -48,6 +49,69 @@ export class Client {
       console.log(address);
     });
     console.log("Success constructor");
+  }
+
+  async getAvailableRoomForLoop(callback: (rooms: any) => void){
+    // if (this.intervalId) {
+    //   console.warn("Requests are already being sent periodically. If you want to restart, please stop first.");
+    //   return;
+    // }
+
+    const sendRequestToServer = async () => {
+      // ここでサーバーへのリクエストを実装します
+      console.log("Sending request to server...");
+      const header = Buffer.alloc(32);
+      header.writeUInt8(this.roomNameSize, 0);
+      header.writeUInt8(3, 1);
+      header.writeUInt8(0, 2);
+      const payloadSizeBuffer = Buffer.alloc(29);
+      const payload = {
+        username: this.username,
+        ip: this.udpAddress,
+        port: this.udpPort,
+      };
+      const payloadData = Buffer.from(JSON.stringify(payload), "utf-8");
+      payloadSizeBuffer.writeBigUInt64BE(BigInt(payloadData.length), 21); // ペイロードの長さを最後の8バイトに書き込む
+      header.set(payloadSizeBuffer, 3); // 第3バイトから始まる位置にpayloadSizeBufferをセット
+      // console.log(header.length)
+      const roomNameBuffer = Buffer.from(this.roomName, "utf-8");
+
+      // Combine the header, room name, and payload data into a single buffer
+      const fullMessage = Buffer.concat([header, roomNameBuffer, payloadData]);
+      this.tcpSocket.write(fullMessage);
+      console.log("Sending request to server for rooms");
+      // 例: this.tcpSocket.write(requestData);
+
+      // サーバーから入室可能なルームの情報のheaderを受け取る
+      const headerBuffer = await this.getResponseData(32);
+      // headerの解析
+      const resHeader = this.readHeader(headerBuffer);
+      console.log(resHeader);
+      console.log("receiving responsePayload");
+      // サーバーから入室可能なルームの情報を受け取る
+      const responsePayloadDate = await this.getResponseData(
+        resHeader.payloadLength
+      );
+      console.log("get responsePayload");
+      console.log(responsePayloadDate);
+      // 受け取った情報をデコードしてJSON形式からJSのオブジェクトへ変換
+      const responsePayload = JSON.parse(responsePayloadDate.toString("utf-8"));
+      callback(responsePayload["rooms"]);
+    }
+
+    // 5秒ごとにsendRequestToServer関数を実行する
+    this.intervalId = setInterval(sendRequestToServer, 5000); // 5秒毎に実行
+  }
+
+  // リクエストの送信を停止するメソッド
+  stopSendingRequests(): void {
+    if (this.intervalId) {
+        clearInterval(this.intervalId);
+        this.intervalId = null;
+        console.log("Stopped sending periodic requests.");
+    } else {
+        console.warn("No periodic requests are currently being sent.");
+    }
   }
 
   // usernameをセットするボタンを押した瞬間にこのメソッドを使用することを想定
@@ -147,6 +211,7 @@ export class Client {
       // const headerBuffer = await this.getResponseData(32);
 
       try {
+        this.stopSendingRequests();
         const headerBuffer = await Promise.race([
           this.getResponseData(32),
           this.timeout(Client.TIMEOUT_MS),
@@ -185,6 +250,7 @@ export class Client {
 
         console.log("get responsePayload");
         console.log(responsePayloadDate);
+        console.log(responsePayloadDate.toString("utf-8"))
         const responsePayload = JSON.parse(
           responsePayloadDate.toString("utf-8")
         );

@@ -8,19 +8,6 @@ interface Room {
   password_required: boolean;
 }
 
-const defaultRooms: Room[] = [
-  {
-    roomName: "room1",
-    members: ["user1", "user2"],
-    password_required: false,
-  },
-  {
-    roomName: "room2",
-    members: ["user1", "user2"],
-    password_required: true,
-  },
-];
-
 const Operation = {
   CREATE_ROOM: 1,
   ENTER_ROOM: 2,
@@ -28,7 +15,7 @@ const Operation = {
 
 const useChatRooms = () => {
   const [client, setClient] = useState<Client | undefined>(undefined);
-  const [rooms, setRooms] = useState<Room[]>(defaultRooms);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<string | null>(null);
   let navigate = useNavigate();
 
@@ -67,6 +54,7 @@ const useChatRooms = () => {
       roomName,
       password
     );
+    navigate(`/chatroom/${roomName}/${client?.getUserName()}`);
   };
 
   const handleClientNameSubmit = (clientName: string) => {
@@ -84,7 +72,7 @@ const useChatRooms = () => {
         for (let roomName of roomNames) {
           const room: Room = {
             roomName: roomName,
-            members: roomsData[roomName].members,
+            members: roomsData[roomName]?.members,
             password_required: roomsData[roomName].password_required,
           };
           availableRooms.push(room);
