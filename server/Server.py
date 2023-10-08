@@ -1,13 +1,13 @@
-from enum import IntEnum
 import json
+import secrets
 import socket
 import struct
 import threading
-import secrets
 import time
-from ChatRoom import ChatRoom
-from ChatClient import ChatClient
+from enum import IntEnum
 
+from ChatClient import ChatClient
+from ChatRoom import ChatRoom
 
 STATUS_MESSAGE = {
     200: 'Successfully joined a chat room',
