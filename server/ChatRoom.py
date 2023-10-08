@@ -1,4 +1,10 @@
+from enum import IntEnum
 import time
+
+
+class ClientOperation(IntEnum):
+    JOIN_ROOM = 1
+    LEAVE_ROOM = 2
 
 
 class ChatRoom:
@@ -11,21 +17,32 @@ class ChatRoom:
         self.is_password_required = (password != "")
         self.password = password
 
+    def send_system_message(self, client, operation, username):
+        payload = {
+            'sender': 'system',
+            'operation': operation,
+            'username': username
+        }
+        client.send_system_message(self.name, payload)
+
     def add_client(self, client):
         if client.name in self.clients:
             return False
         self.verified_token_to_address[client.token] = client.address
         self.clients[client.name] = client
+        self.send_system_message(client, ClientOperation.JOIN_ROOM, client.name)
         return True
 
     def remove_client(self, name):
         if name not in self.clients:
             return
 
+        client = self.clients[name]
         if self.clients[name].is_host:
             self.remove_all_clients()
         else:
             self.notify_disconnection(self.clients[name])
+            self.send_system_message(client, ClientOperation.JOIN_ROOM, client.name)
             del self.verified_token_to_address[self.clients[name].token]
             del self.clients[name]
 
@@ -33,6 +50,8 @@ class ChatRoom:
         for client in self.clients.values():
             self.notify_disconnection(client)
         self.clients.clear()
+        for client_name in self.clients.keys():
+            self.remove_client(client_name)
         self.verified_token_to_address.clear()
 
     def check_timeout(self):
