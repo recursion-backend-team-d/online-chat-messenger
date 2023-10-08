@@ -35,12 +35,13 @@ class ChatRoom:
         self.clients.clear()
         self.verified_token_to_address.clear()
 
-    def check_timeout(self):
+    def check_timeout(self, system_broadcast_func):
         timed_out_clients = []
         for client in self.clients.values():
             if client.last_active + self.TIMEOUT < time.time():
                 timed_out_clients.append(client.name)
         for client_name in timed_out_clients:
+            system_broadcast_func(self.name, client.name)
             self.remove_client(client_name)
 
     def notify_disconnection(self, client):
@@ -65,11 +66,12 @@ class ChatRoom:
     def get_client_by_name(self, name):
         return self.clients.get(name)
 
-    def delete_inactive_clients(self):
+    def delete_inactive_clients(self, system_broadcast_func):
         inactive_clients = []
         for client in self.clients.values():
             if not client.is_active:
                 inactive_clients.append(client)
 
         for client in inactive_clients:
+            system_broadcast_func(self.name, client.name)
             self.remove_client(client.name)

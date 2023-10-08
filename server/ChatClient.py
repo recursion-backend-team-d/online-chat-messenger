@@ -17,6 +17,12 @@ class ChatClient:
         self.inactive_count = 0
         self.is_active = True
 
+    def new_send_message(self, room_name, payload):
+        room_name_data = room_name.encode('utf-8')
+        header = struct.pack('!B B', len(room_name_data), 0)
+        payload_data = json.dumps(payload).encode('utf-8')
+        self.udp_socket.sendto(header + room_name_data + payload_data, self.address)
+
     def send(self, msg):
         try:
             self.send_message(msg)

@@ -131,8 +131,7 @@ class Client:
                 room_name_size, token_size = struct.unpack("!B B", message[:2])
                 receive_payload = json.loads(
                     message[2 + room_name_size + token_size:].decode('utf-8'))
-                print(
-                    f'{receive_payload["sender"]}: {receive_payload["message"]}')
+                print(receive_payload)
         finally:
             print('socket closig....')
             self.udp_socket.close()
