@@ -1,4 +1,36 @@
 # online-chat-messenger
+### Description
+RecursionCSのチーム開発で制作したチャットアプリケーションです。
+TCP/UDPソケットを使用して実装しています。
+クライアントはTCP接続でサーバにチャットルームの作成を依頼し、サーバはリクエストに従ってルームを作成します。
+ルームをTCP接続で確立したのちは、UDP接続でチャットが可能です。
+
+### Usage
+- General
+```bash
+$ pip install -r requirements.txt
+```
+- Server
+```bash
+$ python3 server/main.py
+```
+- Client
+```bash
+$ python3 cli-client/main.py
+$ Enter your username:
+example # Input your name
+$ Do you want to create a new chat room or join an existing one? (Type 'create' or 'join'):
+create # Input create or join
+$ Enter room name:
+example_room # Input a room name to create or join
+$ Enter room password or press enter to skip: # Input password to protect your room when you create it or to join the protected room
+$ Enter message:
+hi! # Input whatever you want to convey to all clients connected to the same room
+```
+
+### Demonstration
+![](https://github.com/recursion-backend-team-d/online-chat-messenger/tree/develop/docs/demo.gif)
+
 
 ### Class Diagram
 
