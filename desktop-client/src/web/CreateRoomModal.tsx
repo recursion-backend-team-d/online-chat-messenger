@@ -36,6 +36,7 @@ const CreateRoomModal: React.FC<Props> = ({
     setRoomName("");
     setPassword("");
     setUsePassword(false);
+    onClose();
   };
 
   return (
