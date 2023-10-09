@@ -29,7 +29,7 @@ hi! # Input whatever you want to convey to all clients connected to the same roo
 ```
 
 ### Demonstration
-![](https://github.com/recursion-backend-team-d/online-chat-messenger/tree/develop/docs/demo.gif)
+![](/docs/demo.gif)
 
 
 ### Class Diagram
